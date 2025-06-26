@@ -1,0 +1,17 @@
+# Ignore Visual Studio files
+.vs/
+
+# Ignore build output directories
+bin/
+obj/
+
+# Ignore any other system-specific files
+*.user
+*.suo
+*.swp
+*.vsidx
+/apis/Services/slca-api_v2_MIN.yaml
+node_modules
+.vscode
+.angular
+/WSUyMovMig/build/
