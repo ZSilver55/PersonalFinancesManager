@@ -1,6 +1,5 @@
 using MX.ZS.PersonalFinances.BLL;
 using MX.ZS.PersonalFinances.Domain.Entities;
-using System.Collections.Generic;
 using System.ComponentModel;
 
 namespace MX.ZS.PersonalFinances.WinForms
@@ -77,8 +76,13 @@ namespace MX.ZS.PersonalFinances.WinForms
         }
         void UpdateTransactionsGridView()
         {
-            BindingList<Transaction> transactions = new BindingList<Transaction>(_currentAccount.Transactions);
-            dataGridView1.DataSource = transactions;
+            if (_currentAccount != null)
+            {
+                BindingList<Transaction> transactions = new BindingList<Transaction>(_currentAccount.Transactions);
+                dataGridView1.DataSource = transactions;
+            }
+            else
+                dataGridView1.DataSource = null;
         }
         private void button1_Click(object sender, EventArgs e)
         {
