@@ -33,5 +33,10 @@ namespace MX.ZS.PersonalFinances.BLL
         {
             _commandHandler.Handle(new DeleteAccountCommand(), entity);
         }
+
+        public void UpdateAccount(Account entity)
+        {
+            _commandHandler.Handle(new UpdateAccountCommand(), entity);
+        }
     }
 }

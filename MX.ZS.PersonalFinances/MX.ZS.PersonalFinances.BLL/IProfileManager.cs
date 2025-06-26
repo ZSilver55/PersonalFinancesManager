@@ -7,5 +7,6 @@ namespace MX.ZS.PersonalFinances.BLL
         List<Account> GetAccounts();
         void AddAccount(Account entity);
         void RemoveAccount(Account entity);
+        void UpdateAccount(Account entity);
     }
 }

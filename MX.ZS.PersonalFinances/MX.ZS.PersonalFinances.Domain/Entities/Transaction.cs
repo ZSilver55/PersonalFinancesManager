@@ -15,5 +15,6 @@ namespace MX.ZS.PersonalFinances.Domain.Entities
         public DateTime? Date { get; set; }
         public bool Applied { get; set; }
         public string Comments { get; set; }
+        public string Type => this.GetType().Name;
     }
 }

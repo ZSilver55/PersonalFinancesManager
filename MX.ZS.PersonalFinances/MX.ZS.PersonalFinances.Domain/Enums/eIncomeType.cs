@@ -8,6 +8,9 @@ namespace MX.ZS.PersonalFinances.Domain.Enums
 {
     public enum eIncomeType
     {
+        // Not listed
+        Other,
+
         // Earned Income
         Salary,
         Wages,
@@ -55,9 +58,6 @@ namespace MX.ZS.PersonalFinances.Domain.Enums
         Remittance,
         CryptoIncome,
         Grants,
-        Crowdfunding,
-
-        // Not listed
-        Other
+        Crowdfunding
     }
 }
