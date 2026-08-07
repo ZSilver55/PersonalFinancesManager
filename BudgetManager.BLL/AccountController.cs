@@ -9,7 +9,7 @@ namespace BudgetManager.BLL
     {
         QueryHandler<IEnumerable<Account>> _queryHandler;
         public AccountController(CommnadHandler commnadHandler,
-            IJsonStore<Account> store,
+            IEntityStore<Account> store,
             QueryHandler<IEnumerable<Account>> queryHandler) : base(commnadHandler, store)
         {
             _queryHandler = queryHandler;

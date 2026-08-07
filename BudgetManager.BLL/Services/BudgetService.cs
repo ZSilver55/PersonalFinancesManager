@@ -29,14 +29,14 @@ namespace BudgetManager.BLL.Services
     /// </summary>
     public class BudgetService
     {
-        private readonly IJsonStore<Account> _accounts;
-        private readonly IJsonStore<Transaction> _transactions;
-        private readonly IJsonStore<Goal> _goals;
+        private readonly IEntityStore<Account> _accounts;
+        private readonly IEntityStore<Transaction> _transactions;
+        private readonly IEntityStore<Goal> _goals;
 
         public BudgetService(
-            IJsonStore<Account> accounts,
-            IJsonStore<Transaction> transactions,
-            IJsonStore<Goal> goals)
+            IEntityStore<Account> accounts,
+            IEntityStore<Transaction> transactions,
+            IEntityStore<Goal> goals)
         {
             _accounts = accounts;
             _transactions = transactions;

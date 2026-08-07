@@ -35,16 +35,16 @@ namespace BudgetManager.BLL.Services
         private const int MaxOccurrences = 1000;
         private const int ForecastWindowDays = 400; // how far ahead to look for the next income
 
-        private readonly IJsonStore<Account> _accounts;
-        private readonly IJsonStore<Transaction> _transactions;
-        private readonly IJsonStore<RecurringTransaction> _recurring;
-        private readonly IJsonStore<Goal> _goals;
+        private readonly IEntityStore<Account> _accounts;
+        private readonly IEntityStore<Transaction> _transactions;
+        private readonly IEntityStore<RecurringTransaction> _recurring;
+        private readonly IEntityStore<Goal> _goals;
 
         public SafeToSpendService(
-            IJsonStore<Account> accounts,
-            IJsonStore<Transaction> transactions,
-            IJsonStore<RecurringTransaction> recurring,
-            IJsonStore<Goal> goals)
+            IEntityStore<Account> accounts,
+            IEntityStore<Transaction> transactions,
+            IEntityStore<RecurringTransaction> recurring,
+            IEntityStore<Goal> goals)
         {
             _accounts = accounts;
             _transactions = transactions;

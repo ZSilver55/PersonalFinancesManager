@@ -9,9 +9,9 @@ namespace BudgetManager.Commands
     /// </summary>
     public class DeleteCommand<T> : IDeleteCommand<Guid> where T : Aggregate
     {
-        private readonly IJsonStore<T> _store;
+        private readonly IEntityStore<T> _store;
 
-        public DeleteCommand(IJsonStore<T> store)
+        public DeleteCommand(IEntityStore<T> store)
         {
             _store = store ?? throw new ArgumentNullException(nameof(store));
         }

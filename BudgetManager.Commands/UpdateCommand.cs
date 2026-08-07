@@ -9,9 +9,9 @@ namespace BudgetManager.Commands
     /// </summary>
     public class UpdateCommand<T> : IUpdateCommand<T> where T : Aggregate
     {
-        private readonly IJsonStore<T> _store;
+        private readonly IEntityStore<T> _store;
 
-        public UpdateCommand(IJsonStore<T> store)
+        public UpdateCommand(IEntityStore<T> store)
         {
             _store = store ?? throw new ArgumentNullException(nameof(store));
         }

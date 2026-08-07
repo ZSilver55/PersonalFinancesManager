@@ -12,7 +12,7 @@ namespace BudgetManager.Queries.Transactions
     /// </summary>
     public class TransactionsByDateRangeQuery : JsonQuery<Transaction>, IQuery<IEnumerable<Transaction>, DateRange>
     {
-        public TransactionsByDateRangeQuery(IJsonStore<Transaction> store) : base(store) { }
+        public TransactionsByDateRangeQuery(IEntityStore<Transaction> store) : base(store) { }
 
         public async Task<QueryResult<IEnumerable<Transaction>>> ExecuteQueryAsync(DateRange range)
         {

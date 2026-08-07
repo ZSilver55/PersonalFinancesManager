@@ -9,7 +9,7 @@ namespace BudgetManager.BLL
     {
         QueryHandler<IEnumerable<RecurringTransaction>> _queryHandler;
         public RecurringTransactionsController(CommnadHandler commnadHandler,
-            IJsonStore<RecurringTransaction> store,
+            IEntityStore<RecurringTransaction> store,
             QueryHandler<IEnumerable<RecurringTransaction>> queryHandler) : base(commnadHandler, store)
         {
             _queryHandler = queryHandler;

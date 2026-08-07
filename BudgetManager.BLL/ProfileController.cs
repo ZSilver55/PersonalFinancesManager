@@ -9,7 +9,7 @@ namespace BudgetManager.BLL
     /// </summary>
     public class ProfileController : BaseController<Profile>
     {
-        public ProfileController(CommnadHandler commnadHandler, IJsonStore<Profile> store)
+        public ProfileController(CommnadHandler commnadHandler, IEntityStore<Profile> store)
             : base(commnadHandler, store)
         {
         }

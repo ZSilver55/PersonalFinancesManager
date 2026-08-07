@@ -23,12 +23,12 @@ namespace BudgetManager.BLL.Services
     {
         private const int MaxOccurrencesPerRun = 1000; // safety valve against runaway loops
 
-        private readonly IJsonStore<RecurringTransaction> _recurring;
-        private readonly IJsonStore<Transaction> _transactions;
+        private readonly IEntityStore<RecurringTransaction> _recurring;
+        private readonly IEntityStore<Transaction> _transactions;
 
         public RecurringExecutionService(
-            IJsonStore<RecurringTransaction> recurring,
-            IJsonStore<Transaction> transactions)
+            IEntityStore<RecurringTransaction> recurring,
+            IEntityStore<Transaction> transactions)
         {
             _recurring = recurring;
             _transactions = transactions;

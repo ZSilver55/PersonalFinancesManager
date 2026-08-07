@@ -7,9 +7,9 @@ namespace BudgetManager.BLL
     public class BaseController<T> where T : Aggregate
     {
         CommnadHandler _commandHandler;
-        protected IJsonStore<T> _store;
+        protected IEntityStore<T> _store;
         public BaseController(CommnadHandler commnadHandler,
-            IJsonStore<T> store)
+            IEntityStore<T> store)
         {
             _commandHandler = commnadHandler;
             _store = store;

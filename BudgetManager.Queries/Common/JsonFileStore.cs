@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 namespace BudgetManager.Queries.Common
 {
     /// <summary>
-    /// Default <see cref="IJsonStore{T}"/> implementation that persists each aggregate type
+    /// Default <see cref="IEntityStore{T}"/> implementation that persists each aggregate type
     /// to its own JSON file (e.g. Account.json, Transaction.json) under the data directory.
     ///
     /// Location resolution:
@@ -17,7 +17,7 @@ namespace BudgetManager.Queries.Common
     /// Writes are serialized per-file with a SemaphoreSlim and performed atomically
     /// (temp file + replace) so a crash mid-write cannot corrupt existing data.
     /// </summary>
-    public class JsonFileStore<T> : IJsonStore<T> where T : Aggregate
+    public class JsonFileStore<T> : IEntityStore<T> where T : Aggregate
     {
         // One gate per physical file, shared across every instance/type that targets it.
         private static readonly ConcurrentDictionary<string, SemaphoreSlim> _gates =

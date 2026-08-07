@@ -9,7 +9,7 @@ namespace BudgetManager.BLL
     /// </summary>
     public class GoalController : BaseController<Goal>
     {
-        public GoalController(CommnadHandler commnadHandler, IJsonStore<Goal> store)
+        public GoalController(CommnadHandler commnadHandler, IEntityStore<Goal> store)
             : base(commnadHandler, store)
         {
         }

@@ -14,10 +14,10 @@ namespace BudgetManager.BLL.Services
     {
         private const int MaxPerRun = 1000;
 
-        private readonly IJsonStore<Account> _accounts;
-        private readonly IJsonStore<Transaction> _transactions;
+        private readonly IEntityStore<Account> _accounts;
+        private readonly IEntityStore<Transaction> _transactions;
 
-        public InterestExecutionService(IJsonStore<Account> accounts, IJsonStore<Transaction> transactions)
+        public InterestExecutionService(IEntityStore<Account> accounts, IEntityStore<Transaction> transactions)
         {
             _accounts = accounts;
             _transactions = transactions;

@@ -8,7 +8,7 @@ namespace BudgetManager.Queries.Attachments
     /// </summary>
     public class AttachmentsByTransactionQuery : JsonQuery<Attachment>, IQuery<IEnumerable<Attachment>, Guid>
     {
-        public AttachmentsByTransactionQuery(IJsonStore<Attachment> store) : base(store) { }
+        public AttachmentsByTransactionQuery(IEntityStore<Attachment> store) : base(store) { }
 
         public async Task<QueryResult<IEnumerable<Attachment>>> ExecuteQueryAsync(Guid transactionId)
         {

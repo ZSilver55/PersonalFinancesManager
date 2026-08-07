@@ -15,25 +15,25 @@ namespace BudgetManager.BLL.Services
     public class SchemaMigrationService
     {
         private readonly AppSettingsService _appSettings;
-        private readonly IJsonStore<Profile> _profiles;
-        private readonly IJsonStore<Account> _accounts;
-        private readonly IJsonStore<Transaction> _transactions;
-        private readonly IJsonStore<Category> _categories;
-        private readonly IJsonStore<Goal> _goals;
-        private readonly IJsonStore<Merchant> _merchants;
-        private readonly IJsonStore<RecurringTransaction> _recurring;
-        private readonly IJsonStore<Attachment> _attachments;
+        private readonly IEntityStore<Profile> _profiles;
+        private readonly IEntityStore<Account> _accounts;
+        private readonly IEntityStore<Transaction> _transactions;
+        private readonly IEntityStore<Category> _categories;
+        private readonly IEntityStore<Goal> _goals;
+        private readonly IEntityStore<Merchant> _merchants;
+        private readonly IEntityStore<RecurringTransaction> _recurring;
+        private readonly IEntityStore<Attachment> _attachments;
 
         public SchemaMigrationService(
             AppSettingsService appSettings,
-            IJsonStore<Profile> profiles,
-            IJsonStore<Account> accounts,
-            IJsonStore<Transaction> transactions,
-            IJsonStore<Category> categories,
-            IJsonStore<Goal> goals,
-            IJsonStore<Merchant> merchants,
-            IJsonStore<RecurringTransaction> recurring,
-            IJsonStore<Attachment> attachments)
+            IEntityStore<Profile> profiles,
+            IEntityStore<Account> accounts,
+            IEntityStore<Transaction> transactions,
+            IEntityStore<Category> categories,
+            IEntityStore<Goal> goals,
+            IEntityStore<Merchant> merchants,
+            IEntityStore<RecurringTransaction> recurring,
+            IEntityStore<Attachment> attachments)
         {
             _appSettings = appSettings;
             _profiles = profiles;
@@ -68,7 +68,7 @@ namespace BudgetManager.BLL.Services
             _appSettings.Save(settings);
         }
 
-        private static async Task NormalizeAsync<T>(IJsonStore<T> store) where T : Aggregate
+        private static async Task NormalizeAsync<T>(IEntityStore<T> store) where T : Aggregate
         {
             try
             {

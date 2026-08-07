@@ -9,7 +9,7 @@ namespace BudgetManager.Queries.Transactions
     /// </summary>
     public class TransactionsByAccountQuery : JsonQuery<Transaction>, IQuery<IEnumerable<Transaction>, Guid>
     {
-        public TransactionsByAccountQuery(IJsonStore<Transaction> store) : base(store) { }
+        public TransactionsByAccountQuery(IEntityStore<Transaction> store) : base(store) { }
 
         public async Task<QueryResult<IEnumerable<Transaction>>> ExecuteQueryAsync(Guid accountId)
         {

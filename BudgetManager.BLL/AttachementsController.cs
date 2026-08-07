@@ -9,7 +9,7 @@ namespace BudgetManager.BLL
     {
         QueryHandler<IEnumerable<Attachment>> _queryHandler;
         public AttachementsController(CommnadHandler commnadHandler,
-            IJsonStore<Attachment> store,
+            IEntityStore<Attachment> store,
             QueryHandler<IEnumerable<Attachment>> queryHandler) : base(commnadHandler, store)
         {
             _queryHandler = queryHandler;

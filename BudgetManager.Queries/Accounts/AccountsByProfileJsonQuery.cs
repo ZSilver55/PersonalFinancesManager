@@ -9,7 +9,7 @@ namespace BudgetManager.Queries.Accounts
     /// </summary>
     public class AccountsByProfileJsonQuery : JsonQuery<Account>, IQuery<IEnumerable<Account>, Guid>
     {
-        public AccountsByProfileJsonQuery(IJsonStore<Account> store) : base(store) { }
+        public AccountsByProfileJsonQuery(IEntityStore<Account> store) : base(store) { }
 
         public async Task<QueryResult<IEnumerable<Account>>> ExecuteQueryAsync(Guid parameter)
         {

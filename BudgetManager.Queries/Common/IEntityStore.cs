@@ -3,23 +3,22 @@ using BudgetManager.Domain;
 namespace BudgetManager.Queries.Common
 {
     /// <summary>
-    /// Abstraction over a single-entity local JSON file (one file per aggregate type,
-    /// stored under %AppData%\BudgetManager). Shared by both the query (read) side and
-    /// the command (write) side, mirroring the role IDbConnectionFactory plays for SQL.
+    /// Storage abstraction for one aggregate type. Implemented by the local JSON file store
+    /// and the SQL store, and shared by both the query (read) and command (write) sides so the
+    /// backing store can be swapped by configuration.
     /// </summary>
-    public interface IJsonStore<T> where T : Aggregate
+    public interface IEntityStore<T> where T : Aggregate
     {
-        /// <summary>Reads every item from the backing file. Returns an empty list if the file does not exist yet.</summary>
+        /// <summary>Reads every item. Returns an empty list when there is no data yet.</summary>
         Task<List<T>> ReadAllAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Streams items from the backing file one at a time instead of materializing the
-        /// whole collection. Prefer this for filtered reads so only the matches are retained
-        /// in memory. The file lock is held for the duration of the enumeration.
+        /// Streams items one at a time instead of materializing the whole collection. Prefer this
+        /// for filtered reads so only the matches are retained in memory.
         /// </summary>
         IAsyncEnumerable<T> StreamAllAsync(CancellationToken cancellationToken = default);
 
-        /// <summary>Overwrites the backing file with the supplied collection.</summary>
+        /// <summary>Replaces the stored collection with the supplied items.</summary>
         Task WriteAllAsync(IEnumerable<T> items, CancellationToken cancellationToken = default);
 
         /// <summary>Returns the item with the given id, or null when not found.</summary>

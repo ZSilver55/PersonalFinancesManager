@@ -1,27 +1,37 @@
+using BudgetManager.Domain.Enumerations;
 using BudgetManager.Queries.Common;
+using BudgetManager.Queries.Common.SQL;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BudgetManager.Commands
 {
     /// <summary>
-    /// Registers the local JSON persistence: the file store plus the generic
-    /// insert / update / delete commands and the generic all / by-id queries.
+    /// Registers the persistence stack: the entity store (JSON files or SQL, chosen by mode)
+    /// plus the generic insert/update/delete commands and the generic all/by-id queries.
     ///
     /// Usage (composition root):
-    ///     services.Configure&lt;Settings&gt;(config.GetSection("Settings"));
-    ///     services.AddJsonPersistence();
+    ///     services.Configure&lt;Settings&gt;(...);           // must supply ConnectionString for SQL
+    ///     services.AddBudgetPersistence(PersistenceMode.Sql);
     ///
     /// Then resolve, for example:
     ///     var insert = provider.GetRequiredService&lt;IInsertCommand&lt;Account&gt;&gt;();
-    ///     var delete = provider.GetRequiredService&lt;DeleteCommand&lt;Account&gt;&gt;();
     ///     var all    = provider.GetRequiredService&lt;AllQuery&lt;Account&gt;&gt;();
     /// </summary>
     public static class JsonPersistenceServiceCollectionExtensions
     {
-        public static IServiceCollection AddJsonPersistence(this IServiceCollection services)
+        public static IServiceCollection AddBudgetPersistence(this IServiceCollection services, PersistenceMode mode)
         {
-            // One JSON file per aggregate type, shared by reads and writes.
-            services.AddSingleton(typeof(IJsonStore<>), typeof(JsonFileStore<>));
+            // Entity store: SQL Server or local JSON files. Both implement IEntityStore<T>, so
+            // the commands, queries, controllers and services are identical either way.
+            if (mode == PersistenceMode.Sql)
+            {
+                services.AddSingleton<IDbConnectionFactory, SQLDbConnectionFactory>();
+                services.AddSingleton(typeof(IEntityStore<>), typeof(SqlEntityStore<>));
+            }
+            else
+            {
+                services.AddSingleton(typeof(IEntityStore<>), typeof(JsonFileStore<>));
+            }
 
             // Commands — interface mappings (insert/update map cleanly as open generics).
             services.AddTransient(typeof(IInsertCommand<>), typeof(InsertCommand<>));

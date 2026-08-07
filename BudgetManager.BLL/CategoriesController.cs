@@ -9,7 +9,7 @@ namespace BudgetManager.BLL
     {
         QueryHandler<IEnumerable<Category>> _queryHandler;
         public CategoriesController(CommnadHandler commnadHandler,
-            IJsonStore<Category> store,
+            IEntityStore<Category> store,
             QueryHandler<IEnumerable<Category>> queryHandler) : base(commnadHandler, store)
         {
             _queryHandler = queryHandler;

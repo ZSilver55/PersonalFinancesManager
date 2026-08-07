@@ -9,7 +9,7 @@ namespace BudgetManager.Queries.Categories
     /// </summary>
     public class CategoriesByParentQuery : JsonQuery<Category>, IQuery<IEnumerable<Category>, Guid?>
     {
-        public CategoriesByParentQuery(IJsonStore<Category> store) : base(store) { }
+        public CategoriesByParentQuery(IEntityStore<Category> store) : base(store) { }
 
         public async Task<QueryResult<IEnumerable<Category>>> ExecuteQueryAsync(Guid? parentCategoryId)
         {

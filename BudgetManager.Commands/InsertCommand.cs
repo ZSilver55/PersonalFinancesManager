@@ -9,9 +9,9 @@ namespace BudgetManager.Commands
     /// </summary>
     public class InsertCommand<T> : IInsertCommand<T> where T : Aggregate
     {
-        private readonly IJsonStore<T> _store;
+        private readonly IEntityStore<T> _store;
 
-        public InsertCommand(IJsonStore<T> store)
+        public InsertCommand(IEntityStore<T> store)
         {
             _store = store ?? throw new ArgumentNullException(nameof(store));
         }

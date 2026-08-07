@@ -8,7 +8,7 @@ namespace BudgetManager.Queries.Common
     /// </summary>
     public class ByIdQuery<T> : JsonQuery<T>, IQuery<T, Guid> where T : Aggregate
     {
-        public ByIdQuery(IJsonStore<T> store) : base(store) { }
+        public ByIdQuery(IEntityStore<T> store) : base(store) { }
 
         public async Task<QueryResult<T>> ExecuteQueryAsync(Guid id)
         {

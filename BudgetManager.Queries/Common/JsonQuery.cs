@@ -9,9 +9,9 @@ namespace BudgetManager.Queries.Common
     /// </summary>
     public abstract class JsonQuery<T> where T : Aggregate
     {
-        protected readonly IJsonStore<T> Store;
+        protected readonly IEntityStore<T> Store;
 
-        protected JsonQuery(IJsonStore<T> store)
+        protected JsonQuery(IEntityStore<T> store)
         {
             Store = store ?? throw new ArgumentNullException(nameof(store));
         }

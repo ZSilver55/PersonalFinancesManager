@@ -9,7 +9,7 @@ namespace BudgetManager.Queries.Recurring
     /// </summary>
     public class DueRecurringTransactionsQuery : JsonQuery<RecurringTransaction>, IQuery<IEnumerable<RecurringTransaction>, DateTime>
     {
-        public DueRecurringTransactionsQuery(IJsonStore<RecurringTransaction> store) : base(store) { }
+        public DueRecurringTransactionsQuery(IEntityStore<RecurringTransaction> store) : base(store) { }
 
         public async Task<QueryResult<IEnumerable<RecurringTransaction>>> ExecuteQueryAsync(DateTime asOf)
         {

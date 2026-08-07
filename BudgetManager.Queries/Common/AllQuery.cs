@@ -8,7 +8,7 @@ namespace BudgetManager.Queries.Common
     /// </summary>
     public class AllQuery<T> : JsonQuery<T>, IQueryAll<IEnumerable<T>> where T : Aggregate
     {
-        public AllQuery(IJsonStore<T> store) : base(store) { }
+        public AllQuery(IEntityStore<T> store) : base(store) { }
 
         public async Task<QueryResult<IEnumerable<T>>> ExecuteQueryAsync()
         {

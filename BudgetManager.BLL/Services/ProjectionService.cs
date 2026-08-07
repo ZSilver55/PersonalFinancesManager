@@ -94,16 +94,16 @@ namespace BudgetManager.BLL.Services
     {
         private const int MaxOccurrences = 1000;
 
-        private readonly IJsonStore<Account> _accounts;
-        private readonly IJsonStore<Transaction> _transactions;
-        private readonly IJsonStore<RecurringTransaction> _recurring;
-        private readonly IJsonStore<Category> _categories;
+        private readonly IEntityStore<Account> _accounts;
+        private readonly IEntityStore<Transaction> _transactions;
+        private readonly IEntityStore<RecurringTransaction> _recurring;
+        private readonly IEntityStore<Category> _categories;
 
         public ProjectionService(
-            IJsonStore<Account> accounts,
-            IJsonStore<Transaction> transactions,
-            IJsonStore<RecurringTransaction> recurring,
-            IJsonStore<Category> categories)
+            IEntityStore<Account> accounts,
+            IEntityStore<Transaction> transactions,
+            IEntityStore<RecurringTransaction> recurring,
+            IEntityStore<Category> categories)
         {
             _accounts = accounts;
             _transactions = transactions;
