@@ -14,7 +14,7 @@ namespace BudgetManager.Domain
         /// migration can rewrite existing files with the new fields. Stored files carry their own
         /// version; a lower value triggers a one-time upgrade.
         /// </summary>
-        public const int CurrentSchemaVersion = 6;
+        public const int CurrentSchemaVersion = 7;
 
         /// <summary>Schema version of the persisted settings file (0 for pre-versioning files).</summary>
         public int SchemaVersion { get; set; } = 0;
@@ -55,6 +55,11 @@ namespace BudgetManager.Domain
         /// ConnectionString) to use SQL Server.
         /// </summary>
         public PersistenceMode PersistenceMode { get; set; } = PersistenceMode.Json;
+
+        /// <summary>
+        /// Base URL of the Web API (e.g. https://localhost:7180). Required when PersistenceMode is Api.
+        /// </summary>
+        public string? ApiBaseUrl { get; set; }
 
         /// <summary>
         /// Set once the one-time import of existing JSON data into SQL has run, so it isn't repeated.

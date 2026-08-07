@@ -1,7 +1,9 @@
+using BudgetManager.Domain;
 using BudgetManager.Domain.Enumerations;
 using BudgetManager.Queries.Common;
 using BudgetManager.Queries.Common.SQL;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace BudgetManager.Commands
 {
@@ -21,12 +23,24 @@ namespace BudgetManager.Commands
     {
         public static IServiceCollection AddBudgetPersistence(this IServiceCollection services, PersistenceMode mode)
         {
-            // Entity store: SQL Server or local JSON files. Both implement IEntityStore<T>, so
-            // the commands, queries, controllers and services are identical either way.
+            // Entity store: SQL Server (server), remote Web API (desktop online), or local JSON
+            // files (desktop offline). All implement IEntityStore<T>, so the commands, queries,
+            // controllers and services are identical regardless of the backing store.
             if (mode == PersistenceMode.Sql)
             {
                 services.AddSingleton<IDbConnectionFactory, SQLDbConnectionFactory>();
                 services.AddSingleton(typeof(IEntityStore<>), typeof(SqlEntityStore<>));
+            }
+            else if (mode == PersistenceMode.Api)
+            {
+                services.AddSingleton(sp =>
+                {
+                    var url = sp.GetRequiredService<IOptions<Settings>>().Value.ApiBaseUrl
+                              ?? throw new InvalidOperationException("An ApiBaseUrl is required for API persistence.");
+                    if (!url.EndsWith('/')) url += "/";
+                    return new HttpClient { BaseAddress = new Uri(url) };
+                });
+                services.AddSingleton(typeof(IEntityStore<>), typeof(ApiEntityStore<>));
             }
             else
             {

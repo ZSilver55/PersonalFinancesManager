@@ -19,37 +19,24 @@ namespace BudgetManager.UI
         {
             ApplicationConfiguration.Initialize();
 
-            // Persisted preferences drive persistence mode/connection string, so read them first.
+            // Persisted preferences drive the data source. The desktop uses local JSON or the
+            // remote API only — never SQL directly (SQL is server-side). A Sql setting or an
+            // Api setting without a base URL falls back to local JSON.
             var persisted = LoadPersistedSettings();
-            var mode = persisted.PersistenceMode == PersistenceMode.Sql
-                       && !string.IsNullOrWhiteSpace(persisted.ConnectionString)
-                ? PersistenceMode.Sql
-                : PersistenceMode.Json; // safe fallback when SQL is requested without a connection string
+            var mode = persisted.PersistenceMode == PersistenceMode.Api
+                       && !string.IsNullOrWhiteSpace(persisted.ApiBaseUrl)
+                ? PersistenceMode.Api
+                : PersistenceMode.Json;
 
             var services = new ServiceCollection();
             ConfigureServices(services, persisted, mode);
 
             using var provider = services.BuildServiceProvider();
 
-            // Upgrade older data/settings files to the current schema before anything reads them.
-            provider.GetRequiredService<SchemaMigrationService>().MigrateAsync().GetAwaiter().GetResult();
-
-            // One-time import of existing JSON data into SQL when SQL was just enabled.
-            if (mode == PersistenceMode.Sql && !persisted.ImportedJsonToSql)
-            {
-                try
-                {
-                    provider.GetRequiredService<StoreImportService>().ImportJsonToSqlAsync().GetAwaiter().GetResult();
-                    var appSettings = provider.GetRequiredService<AppSettingsService>();
-                    var s = appSettings.LoadSettings();
-                    s.ImportedJsonToSql = true;
-                    appSettings.Save(s);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(ex.Message, "Data import", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-            }
+            // Local schema upgrade only applies to the local JSON files; in API mode the server
+            // owns the schema.
+            if (mode == PersistenceMode.Json)
+                provider.GetRequiredService<SchemaMigrationService>().MigrateAsync().GetAwaiter().GetResult();
 
             // Apply the persisted UI language before any window is created.
             Loc.SetLanguage(provider.GetRequiredService<AppSettingsService>().LoadLanguage());
@@ -72,32 +59,17 @@ namespace BudgetManager.UI
                 s.SafetyBuffer = persisted.SafetyBuffer;
                 s.ReserveForGoals = persisted.ReserveForGoals;
                 s.PersistenceMode = mode;
+                s.ApiBaseUrl = persisted.ApiBaseUrl;
                 s.ImportedJsonToSql = persisted.ImportedJsonToSql;
             });
 
-            // Persistence (store + generic commands/queries), JSON or SQL per mode.
+            // Data source: local JSON or the remote API (chosen above; never SQL on the desktop).
             services.AddBudgetPersistence(mode);
-            if (mode == PersistenceMode.Sql)
-                services.AddTransient<StoreImportService>();
 
-            // Handlers.
-            services.AddTransient<CommnadHandler>();
-            services.AddTransient(typeof(QueryHandler<>));
+            // Shared application layer (handlers, controllers, business services).
+            services.AddBudgetApplication();
 
-            // Controllers.
-            services.AddTransient<ProfileController>();
-            services.AddTransient<AccountController>();
-            services.AddTransient<TransactionsController>();
-            services.AddTransient<CategoriesController>();
-            services.AddTransient<GoalController>();
-            services.AddTransient<RecurringTransactionsController>();
-
-            // Domain services.
-            services.AddTransient<BudgetService>();
-            services.AddTransient<RecurringExecutionService>();
-            services.AddTransient<InterestExecutionService>();
-            services.AddTransient<ProjectionService>();
-            services.AddTransient<SafeToSpendService>();
+            // Desktop-only services.
             services.AddSingleton<DataPortabilityService>();
             services.AddSingleton<AppSettingsService>();
             services.AddTransient<SchemaMigrationService>();

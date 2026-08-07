@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Drawing;
 
 namespace BudgetManager.UI.Views
@@ -52,7 +53,7 @@ namespace BudgetManager.UI.Views
             flow.Controls.Add(Spacer());
 
             flow.Controls.Add(Heading(Loc.T("Contact")));
-            flow.Controls.Add(Text(ContactEmail));
+            flow.Controls.Add(MailLink(ContactEmail));
             flow.Controls.Add(Spacer());
 
             flow.Controls.Add(Heading(Loc.T("Acknowledgements")));
@@ -99,6 +100,23 @@ namespace BudgetManager.UI.Views
             ForeColor = Color.FromArgb(70, 70, 70),
             Margin = new Padding(0, 1, 0, 1)
         };
+
+        private static Control MailLink(string email)
+        {
+            var link = new LinkLabel
+            {
+                Text = email,
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9.5F),
+                Margin = new Padding(0, 1, 0, 1)
+            };
+            link.LinkClicked += (_, _) =>
+            {
+                try { Process.Start(new ProcessStartInfo($"mailto:{email}") { UseShellExecute = true }); }
+                catch { /* no mail client configured */ }
+            };
+            return link;
+        }
 
         private static Label Spacer() => new() { AutoSize = false, Size = new Size(1, 8) };
     }
