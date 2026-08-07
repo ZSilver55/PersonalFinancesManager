@@ -73,6 +73,7 @@ namespace BudgetManager.UI
             services.AddSingleton<DataPortabilityService>();
             services.AddSingleton<AppSettingsService>();
             services.AddTransient<SchemaMigrationService>();
+            services.AddTransient<DataSourceSwitchService>();
 
             // Forms.
             services.AddTransient<MainForm>();

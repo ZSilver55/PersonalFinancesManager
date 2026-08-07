@@ -89,30 +89,11 @@ namespace BudgetManager.UI.Views
             leftPanel.Controls.Add(_safeAmount);
             leftPanel.Controls.Add(_safeTitle);
 
-            _btnConfigSafe.Text = Loc.T("Configure…");
-            _btnConfigSafe.Click += async (_, _) => await ConfigureSafeAsync();
-            var rightPanel = new Panel { Dock = DockStyle.Right, Width = 110 };
-            rightPanel.Controls.Add(_btnConfigSafe);
-
             _safeBreakdown.Padding = new Padding(12, 2, 0, 0);
 
             host.Controls.Add(_safeBreakdown); // fill (added first)
             host.Controls.Add(leftPanel);
-            host.Controls.Add(rightPanel);
             return host;
-        }
-
-        private async Task ConfigureSafeAsync()
-        {
-            var settings = _appSettings.LoadSettings();
-            using var dlg = new SafeToSpendConfigDialog(settings.SafetyBuffer, settings.ReserveForGoals);
-            if (dlg.ShowDialog(this) != DialogResult.OK) return;
-
-            settings.SafetyBuffer = dlg.Buffer;
-            settings.ReserveForGoals = dlg.ReserveGoals;
-            _appSettings.Save(settings);
-
-            if (_profileId != Guid.Empty) await LoadAsync(_profileId);
         }
 
         private void UpdateSafeCard(SafeToSpendResult s)

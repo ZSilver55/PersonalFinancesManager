@@ -41,6 +41,20 @@ namespace BudgetManager.UI
             ["Export…"] = "Exportar…",
             ["Import…"] = "Importar…",
             ["Refresh"] = "Actualizar",
+            ["Settings…"] = "Configuración…",
+            ["Settings"] = "Configuración",
+            ["Language"] = "Idioma",
+            ["Work online (use the server)"] = "Trabajar en línea (usar el servidor)",
+            ["API address"] = "Dirección del API",
+            ["Switching online/offline migrates your data and restarts the app."]
+                = "Cambiar entre en línea/sin conexión migra tus datos y reinicia la aplicación.",
+            ["Switching online/offline migrates your data and restarts the app. Continue?"]
+                = "Cambiar entre en línea/sin conexión migra tus datos y reinicia la aplicación. ¿Continuar?",
+            ["Migrated {0} record(s). The app will restart now."]
+                = "Se migraron {0} registro(s). La aplicación se reiniciará ahora.",
+            ["The app will restart to apply the new API address."]
+                = "La aplicación se reiniciará para aplicar la nueva dirección del API.",
+            ["Enter the API address to work online."] = "Ingrese la dirección del API para trabajar en línea.",
             ["Dashboard"] = "Panel",
             ["Accounts"] = "Cuentas",
             ["Transactions"] = "Transacciones",

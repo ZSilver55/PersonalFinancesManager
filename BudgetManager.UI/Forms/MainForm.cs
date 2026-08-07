@@ -2,6 +2,7 @@ using System.Diagnostics;
 using BudgetManager.BLL;
 using BudgetManager.BLL.Services;
 using BudgetManager.Domain;
+using BudgetManager.Domain.Enumerations;
 using BudgetManager.UI.Views;
 
 namespace BudgetManager.UI.Forms
@@ -26,14 +27,13 @@ namespace BudgetManager.UI.Forms
         private readonly SafeToSpendService _safeToSpend;
         private readonly DataPortabilityService _data;
         private readonly AppSettingsService _appSettings;
+        private readonly DataSourceSwitchService _switch;
 
         private readonly ComboBox _cboProfile = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 220 };
-        private readonly ComboBox _cboLang = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 140 };
         private readonly TabControl _tabs = new() { Dock = DockStyle.Fill };
 
-        private Label _lblProfile = null!, _lblLang = null!;
-        private Button _btnManage = null!, _btnOpen = null!, _btnExport = null!, _btnImport = null!, _btnRefresh = null!;
-        private bool _suppressLang;
+        private Label _lblProfile = null!;
+        private Button _btnManage = null!, _btnOpen = null!, _btnExport = null!, _btnImport = null!, _btnRefresh = null!, _btnSettings = null!;
         private bool _suppressTabEvent;
 
         public MainForm(
@@ -49,7 +49,8 @@ namespace BudgetManager.UI.Forms
             ProjectionService projection,
             SafeToSpendService safeToSpend,
             DataPortabilityService data,
-            AppSettingsService appSettings)
+            AppSettingsService appSettings,
+            DataSourceSwitchService switchService)
         {
             _profiles = profiles;
             _accountsCtl = accounts;
@@ -64,6 +65,7 @@ namespace BudgetManager.UI.Forms
             _safeToSpend = safeToSpend;
             _data = data;
             _appSettings = appSettings;
+            _switch = switchService;
 
             BuildUi();
 
@@ -102,13 +104,8 @@ namespace BudgetManager.UI.Forms
             flow.Controls.Add(_btnRefresh);
 
             flow.Controls.Add(new Label { Text = "    ", AutoSize = true });
-            _lblLang = new Label { AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 6, 4, 0) };
-            flow.Controls.Add(_lblLang);
-            _cboLang.Items.Add(new LangItem("en", "English"));
-            _cboLang.Items.Add(new LangItem("es", "Español (MX)"));
-            _cboLang.SelectedIndex = Loc.Language == "es" ? 1 : 0;
-            _cboLang.SelectedIndexChanged += async (_, _) => await OnLanguageChangedAsync();
-            flow.Controls.Add(_cboLang);
+            _btnSettings = MakeButton(async (_, _) => await OpenSettingsAsync());
+            flow.Controls.Add(_btnSettings);
 
             top.Controls.Add(flow);
 
@@ -125,12 +122,12 @@ namespace BudgetManager.UI.Forms
         {
             Text = Loc.T("Budget Manager");
             _lblProfile.Text = Loc.T("Profile:");
-            _lblLang.Text = Loc.T("Language:");
             _btnManage.Text = Loc.T("Manage Profiles");
             _btnOpen.Text = Loc.T("Open Data Folder");
             _btnExport.Text = Loc.T("Export…");
             _btnImport.Text = Loc.T("Import…");
             _btnRefresh.Text = Loc.T("Refresh");
+            _btnSettings.Text = Loc.T("Settings…");
         }
 
         private void BuildTabs()
@@ -169,15 +166,75 @@ namespace BudgetManager.UI.Forms
             return b;
         }
 
-        private async Task OnLanguageChangedAsync()
+        private async Task OpenSettingsAsync()
         {
-            if (_suppressLang) return;
-            if (_cboLang.SelectedItem is not LangItem item) return;
+            var s = _appSettings.LoadSettings();
+            bool currentOnline = s.PersistenceMode == PersistenceMode.Api && !string.IsNullOrWhiteSpace(s.ApiBaseUrl);
+            var currentMode = currentOnline ? PersistenceMode.Api : PersistenceMode.Json;
+            string? currentUrl = s.ApiBaseUrl;
+            string currentLang = s.Language ?? "en";
 
-            Loc.SetLanguage(item.Code);
-            _appSettings.SaveLanguage(item.Code);
-            ApplyChromeText();
-            BuildTabs();
+            using var dlg = new Dialogs.SettingsDialog(s, currentOnline);
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+            s.Language = dlg.Language;
+            s.SafetyBuffer = dlg.SafetyBuffer;
+            s.ReserveForGoals = dlg.ReserveForGoals;
+            s.ApiBaseUrl = string.IsNullOrWhiteSpace(dlg.ApiBaseUrl) ? null : dlg.ApiBaseUrl.Trim();
+
+            var targetMode = dlg.Online ? PersistenceMode.Api : PersistenceMode.Json;
+            bool urlChanged = !string.Equals(currentUrl, s.ApiBaseUrl, StringComparison.OrdinalIgnoreCase);
+
+            // Switching between offline (JSON) and online (API): migrate the data, then restart
+            // so the new store is wired at startup.
+            if (targetMode != currentMode)
+            {
+                if (MessageBox.Show(this,
+                        Loc.T("Switching online/offline migrates your data and restarts the app. Continue?"),
+                        Loc.T("Settings"), MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) != DialogResult.OK)
+                    return;
+
+                try
+                {
+                    Cursor = Cursors.WaitCursor;
+                    int migrated = await _switch.MigrateAsync(s, currentMode, targetMode);
+                    s.PersistenceMode = targetMode;
+                    _appSettings.Save(s);
+                    MessageBox.Show(this, Loc.F("Migrated {0} record(s). The app will restart now.", migrated),
+                        Loc.T("Settings"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this, ex.Message, Loc.T("Settings"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return; // don't switch/restart on failure
+                }
+                finally { Cursor = Cursors.Default; }
+
+                Application.Restart();
+                return;
+            }
+
+            // Still online but the API address changed → restart to reconnect (no migration).
+            if (targetMode == PersistenceMode.Api && urlChanged)
+            {
+                s.PersistenceMode = targetMode;
+                _appSettings.Save(s);
+                MessageBox.Show(this, Loc.T("The app will restart to apply the new API address."),
+                    Loc.T("Settings"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+                Application.Restart();
+                return;
+            }
+
+            // No data-source change → save and apply live (language, safe-to-spend).
+            s.PersistenceMode = currentMode;
+            _appSettings.Save(s);
+
+            if (!string.Equals(currentLang, s.Language, StringComparison.OrdinalIgnoreCase))
+            {
+                Loc.SetLanguage(s.Language);
+                ApplyChromeText();
+                BuildTabs();
+            }
             await RefreshActiveTabAsync();
         }
 
@@ -320,11 +377,6 @@ namespace BudgetManager.UI.Forms
         {
             public Profile Profile { get; init; } = default!;
             public override string ToString() => $"{Profile.Names} {Profile.LastNames}".Trim();
-        }
-
-        private sealed record LangItem(string Code, string Display)
-        {
-            public override string ToString() => Display;
         }
     }
 }
