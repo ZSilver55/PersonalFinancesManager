@@ -22,8 +22,7 @@ namespace BudgetManager.Queries.Common
             [typeof(Category)] = "categories",
             [typeof(Goal)] = "goals",
             [typeof(Merchant)] = "merchants",
-            [typeof(RecurringTransaction)] = "recurring",
-            [typeof(Attachment)] = "attachments"
+            [typeof(RecurringTransaction)] = "recurring"
         };
 
         private readonly HttpClient _http;

@@ -32,7 +32,6 @@ namespace BudgetManager.BLL.Services
             total += await CopyAsync<Goal>();
             total += await CopyAsync<Merchant>();
             total += await CopyAsync<RecurringTransaction>();
-            total += await CopyAsync<Attachment>();
             return total;
         }
 

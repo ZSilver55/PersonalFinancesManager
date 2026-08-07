@@ -22,7 +22,6 @@ namespace BudgetManager.BLL.Services
         private readonly IEntityStore<Goal> _goals;
         private readonly IEntityStore<Merchant> _merchants;
         private readonly IEntityStore<RecurringTransaction> _recurring;
-        private readonly IEntityStore<Attachment> _attachments;
 
         public SchemaMigrationService(
             AppSettingsService appSettings,
@@ -32,8 +31,7 @@ namespace BudgetManager.BLL.Services
             IEntityStore<Category> categories,
             IEntityStore<Goal> goals,
             IEntityStore<Merchant> merchants,
-            IEntityStore<RecurringTransaction> recurring,
-            IEntityStore<Attachment> attachments)
+            IEntityStore<RecurringTransaction> recurring)
         {
             _appSettings = appSettings;
             _profiles = profiles;
@@ -43,7 +41,6 @@ namespace BudgetManager.BLL.Services
             _goals = goals;
             _merchants = merchants;
             _recurring = recurring;
-            _attachments = attachments;
         }
 
         /// <summary>Runs the migration if the persisted schema is behind the current version.</summary>
@@ -61,7 +58,6 @@ namespace BudgetManager.BLL.Services
             await NormalizeAsync(_goals);
             await NormalizeAsync(_merchants);
             await NormalizeAsync(_recurring);
-            await NormalizeAsync(_attachments);
 
             // Stamp the current version and persist the (already default-filled) settings.
             settings.SchemaVersion = Settings.CurrentSchemaVersion;
