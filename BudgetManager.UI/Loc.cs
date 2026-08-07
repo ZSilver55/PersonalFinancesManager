@@ -55,6 +55,11 @@ namespace BudgetManager.UI
             ["The app will restart to apply the new API address."]
                 = "La aplicación se reiniciará para aplicar la nueva dirección del API.",
             ["Enter the API address to work online."] = "Ingrese la dirección del API para trabajar en línea.",
+            ["When the server requires sign-in, use the Sign in button after connecting."]
+                = "Cuando el servidor requiera inicio de sesión, use el botón Iniciar sesión después de conectar.",
+            ["Sign in"] = "Iniciar sesión",
+            ["Sign out"] = "Cerrar sesión",
+            ["This server does not require sign-in."] = "Este servidor no requiere inicio de sesión.",
             ["Dashboard"] = "Panel",
             ["Accounts"] = "Cuentas",
             ["Transactions"] = "Transacciones",

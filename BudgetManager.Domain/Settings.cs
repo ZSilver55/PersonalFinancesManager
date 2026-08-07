@@ -14,7 +14,7 @@ namespace BudgetManager.Domain
         /// migration can rewrite existing files with the new fields. Stored files carry their own
         /// version; a lower value triggers a one-time upgrade.
         /// </summary>
-        public const int CurrentSchemaVersion = 7;
+        public const int CurrentSchemaVersion = 8;
 
         /// <summary>Schema version of the persisted settings file (0 for pre-versioning files).</summary>
         public int SchemaVersion { get; set; } = 0;
@@ -65,5 +65,10 @@ namespace BudgetManager.Domain
         /// Set once the one-time import of existing JSON data into SQL has run, so it isn't repeated.
         /// </summary>
         public bool ImportedJsonToSql { get; set; } = false;
+
+        // Sign-in is intentionally NOT configured on the desktop. The client only knows the API
+        // address (ApiBaseUrl); it fetches sign-in details from the API's /auth/config endpoint and
+        // the API performs the token exchange, so identity-provider settings and secrets live
+        // server-side only.
     }
 }

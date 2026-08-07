@@ -75,6 +75,11 @@ namespace BudgetManager.UI
             services.AddTransient<SchemaMigrationService>();
             services.AddTransient<DataSourceSwitchService>();
 
+            // Sign-in service. Registered as the API token provider (overrides the NullApiTokenProvider
+            // from AddBudgetPersistence, since this comes later), so online requests carry the token.
+            services.AddSingleton<Services.DesktopAuthService>();
+            services.AddSingleton<IApiTokenProvider>(sp => sp.GetRequiredService<Services.DesktopAuthService>());
+
             // Forms.
             services.AddTransient<MainForm>();
         }

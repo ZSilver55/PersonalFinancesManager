@@ -1,17 +1,40 @@
-# Ignore Visual Studio files
+# ---- Secrets / local configuration (never commit real credentials) ----
+# The API's appsettings hold the Google client secret, so keep them out of the repo.
+# A sanitized appsettings.example.json is committed instead as a template.
+BudgetManager.Api/appsettings.json
+BudgetManager.Api/appsettings.Development.json
+appsettings.*.local.json
+
+.git/
+
+# ASP.NET user secrets (if used) live outside the repo already, but ignore any stray copies.
+secrets.json
+
+# ---- Build output ----
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+publish/
+*.dll
+*.exe
+*.pdb
+
+# ---- Visual Studio / Rider / VS Code ----
 .vs/
-
-# Ignore build output directories
-bin/
-obj/
-
-# Ignore any other system-specific files
+.idea/
 *.user
 *.suo
-*.swp
-*.vsidx
-/apis/Services/slca-api_v2_MIN.yaml
-node_modules
-.vscode
-.angular
-/WSUyMovMig/build/
+*.userosscache
+*.sln.docstates
+.vscode/
+
+# ---- NuGet ----
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+
+# ---- Misc ----
+*.log
+[Tt]humbs.db
+.DS_Store

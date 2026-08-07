@@ -20,7 +20,7 @@ namespace BudgetManager.UI.Dialogs
 
         public SettingsDialog(Settings current, bool currentOnline)
         {
-            var (table, _) = DialogUi.Build(this, Loc.T("Settings"), width: 480, height: 360);
+            var (table, _) = DialogUi.Build(this, Loc.T("Settings"), width: 480, height: 380);
 
             _language.Items.Add(new DialogUi.Item { Value = "en", Text = "English" });
             _language.Items.Add(new DialogUi.Item { Value = "es", Text = "Español (MX)" });
@@ -34,6 +34,7 @@ namespace BudgetManager.UI.Dialogs
             DialogUi.Row(table, Loc.T("Language"), _language);
             DialogUi.Row(table, "", _online);
             DialogUi.Row(table, Loc.T("API address"), _apiUrl);
+            DialogUi.Row(table, "", new Label { Text = Loc.T("When the server requires sign-in, use the Sign in button after connecting."), AutoSize = true, ForeColor = SystemColors.GrayText });
             DialogUi.Row(table, "", new Label { Text = Loc.T("Switching online/offline migrates your data and restarts the app."), AutoSize = true, ForeColor = SystemColors.GrayText });
             DialogUi.Row(table, Loc.T("Safety buffer"), _buffer);
             DialogUi.Row(table, "", _reserveGoals);

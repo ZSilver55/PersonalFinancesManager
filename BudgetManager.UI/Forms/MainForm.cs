@@ -3,6 +3,7 @@ using BudgetManager.BLL;
 using BudgetManager.BLL.Services;
 using BudgetManager.Domain;
 using BudgetManager.Domain.Enumerations;
+using BudgetManager.UI.Services;
 using BudgetManager.UI.Views;
 
 namespace BudgetManager.UI.Forms
@@ -28,12 +29,14 @@ namespace BudgetManager.UI.Forms
         private readonly DataPortabilityService _data;
         private readonly AppSettingsService _appSettings;
         private readonly DataSourceSwitchService _switch;
+        private readonly DesktopAuthService _auth;
 
         private readonly ComboBox _cboProfile = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 220 };
         private readonly TabControl _tabs = new() { Dock = DockStyle.Fill };
 
         private Label _lblProfile = null!;
         private Button _btnManage = null!, _btnOpen = null!, _btnExport = null!, _btnImport = null!, _btnRefresh = null!, _btnSettings = null!;
+        private Button? _btnSignIn;
         private bool _suppressTabEvent;
 
         public MainForm(
@@ -50,7 +53,8 @@ namespace BudgetManager.UI.Forms
             SafeToSpendService safeToSpend,
             DataPortabilityService data,
             AppSettingsService appSettings,
-            DataSourceSwitchService switchService)
+            DataSourceSwitchService switchService,
+            DesktopAuthService auth)
         {
             _profiles = profiles;
             _accountsCtl = accounts;
@@ -66,6 +70,7 @@ namespace BudgetManager.UI.Forms
             _data = data;
             _appSettings = appSettings;
             _switch = switchService;
+            _auth = auth;
 
             BuildUi();
 
@@ -107,6 +112,16 @@ namespace BudgetManager.UI.Forms
             _btnSettings = MakeButton(async (_, _) => await OpenSettingsAsync());
             flow.Controls.Add(_btnSettings);
 
+            // Sign-in only makes sense online (API mode); it authenticates against the server's provider.
+            var st = _appSettings.LoadSettings();
+            bool online = st.PersistenceMode == PersistenceMode.Api && !string.IsNullOrWhiteSpace(st.ApiBaseUrl);
+            if (online)
+            {
+                _btnSignIn = MakeButton(async (_, _) => await ToggleSignInAsync());
+                flow.Controls.Add(_btnSignIn);
+                _auth.StateChanged += () => { if (IsHandleCreated) BeginInvoke((Action)UpdateSignInText); };
+            }
+
             top.Controls.Add(flow);
 
             _tabs.SelectedIndexChanged += async (_, _) => { if (!_suppressTabEvent) await RefreshActiveTabAsync(); };
@@ -128,6 +143,40 @@ namespace BudgetManager.UI.Forms
             _btnImport.Text = Loc.T("Import…");
             _btnRefresh.Text = Loc.T("Refresh");
             _btnSettings.Text = Loc.T("Settings…");
+            UpdateSignInText();
+        }
+
+        private void UpdateSignInText()
+        {
+            if (_btnSignIn is null) return;
+            _btnSignIn.Text = _auth.IsSignedIn ? Loc.T("Sign out") : Loc.T("Sign in");
+        }
+
+        private async Task ToggleSignInAsync()
+        {
+            try
+            {
+                if (_auth.IsSignedIn)
+                {
+                    _auth.SignOut();
+                }
+                else
+                {
+                    Cursor = Cursors.WaitCursor;
+                    await _auth.SignInAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, Loc.T("Sign in"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+                UpdateSignInText();
+            }
+
+            await RefreshActiveTabAsync();
         }
 
         private void BuildTabs()

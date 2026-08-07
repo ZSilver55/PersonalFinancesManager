@@ -44,7 +44,7 @@ namespace BudgetManager.BLL.Services
         private static IEntityStore<T> Build<T>(PersistenceMode mode, Settings settings, HttpClient? http) where T : Aggregate
             => mode == PersistenceMode.Api
                 ? new ApiEntityStore<T>(http!)
-                : new JsonFileStore<T>(Options.Create(settings));
+                : new JsonFileStore<T>(Options.Create(settings), new SystemCurrentUser());
 
         private static async Task<int> CopyAsync<T>(Settings settings, PersistenceMode from, PersistenceMode to, HttpClient? http)
             where T : Aggregate

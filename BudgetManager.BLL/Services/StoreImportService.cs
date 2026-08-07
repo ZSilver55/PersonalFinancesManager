@@ -37,8 +37,8 @@ namespace BudgetManager.BLL.Services
 
         private async Task<int> CopyAsync<T>() where T : Aggregate
         {
-            var json = new JsonFileStore<T>(_options);
-            var sql = new SqlEntityStore<T>(_factory, _options);
+            var json = new JsonFileStore<T>(_options, new SystemCurrentUser());
+            var sql = new SqlEntityStore<T>(_factory, _options, new SystemCurrentUser());
 
             var items = await json.ReadAllAsync();
             foreach (var item in items)

@@ -11,10 +11,12 @@ namespace BudgetManager.Queries.Common.SQL
 {
     /// <summary>
     /// SQL Server implementation of <see cref="IEntityStore{T}"/>. Each aggregate type gets its
-    /// own table with (Id, OwnerUserId, Data) where Data is the entity serialized as JSON. This
-    /// keeps the store generic and preserves the existing in-memory query/command logic while
-    /// moving persistence into SQL; OwnerUserId is a real, indexed column ready for per-user
-    /// scoping. Tables are created on first use.
+    /// own table with (Id, OwnerUserId, Data) where Data is the entity serialized as JSON.
+    ///
+    /// Every operation is scoped to <see cref="ICurrentUser.UserId"/>: reads filter by owner,
+    /// writes stamp the owner (ignoring any client-supplied value), and find/delete require a
+    /// matching owner. This is the per-user isolation boundary — a caller can never read or
+    /// modify another user's data. Tables are created on first use.
     /// </summary>
     public class SqlEntityStore<T> : IEntityStore<T> where T : Aggregate
     {
@@ -23,19 +25,24 @@ namespace BudgetManager.Queries.Common.SQL
 
         private readonly IDbConnectionFactory _factory;
         private readonly string _connectionString;
+        private readonly ICurrentUser _currentUser;
         private readonly string _table = typeof(T).Name;
 
-        public SqlEntityStore(IDbConnectionFactory factory, IOptions<Settings> settings)
+        public SqlEntityStore(IDbConnectionFactory factory, IOptions<Settings> settings, ICurrentUser currentUser)
         {
             _factory = factory;
+            _currentUser = currentUser;
             _connectionString = settings.Value.ConnectionString
                 ?? throw new InvalidOperationException("A ConnectionString is required for SQL persistence.");
         }
 
+        private Guid Owner => _currentUser.UserId;
+
         public async Task<List<T>> ReadAllAsync(CancellationToken cancellationToken = default)
         {
             await using var conn = await OpenAsync(cancellationToken);
-            var rows = await conn.QueryAsync<string>($"SELECT Data FROM [{_table}]");
+            var rows = await conn.QueryAsync<string>(
+                $"SELECT Data FROM [{_table}] WHERE OwnerUserId = @owner", new { owner = Owner });
             return rows.Select(Deserialize).Where(x => x is not null).Select(x => x!).ToList();
         }
 
@@ -49,7 +56,7 @@ namespace BudgetManager.Queries.Common.SQL
         {
             await using var conn = await OpenAsync(cancellationToken);
             var json = await conn.QueryFirstOrDefaultAsync<string>(
-                $"SELECT Data FROM [{_table}] WHERE Id = @id", new { id });
+                $"SELECT Data FROM [{_table}] WHERE Id = @id AND OwnerUserId = @owner", new { id, owner = Owner });
             return json is null ? null : Deserialize(json);
         }
 
@@ -65,7 +72,8 @@ namespace BudgetManager.Queries.Common.SQL
         public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
         {
             await using var conn = await OpenAsync(cancellationToken);
-            int affected = await conn.ExecuteAsync($"DELETE FROM [{_table}] WHERE Id = @id", new { id });
+            int affected = await conn.ExecuteAsync(
+                $"DELETE FROM [{_table}] WHERE Id = @id AND OwnerUserId = @owner", new { id, owner = Owner });
             return affected > 0;
         }
 
@@ -85,10 +93,12 @@ namespace BudgetManager.Queries.Common.SQL
 
         private async Task UpsertAsync(DbConnection conn, DbTransaction? tx, T item)
         {
+            // Stamp ownership from the current user, never from the incoming payload.
+            item.OwnerUserId = Owner;
             var sql =
-                $"UPDATE [{_table}] SET OwnerUserId = @owner, Data = @data WHERE Id = @id; " +
+                $"UPDATE [{_table}] SET Data = @data WHERE Id = @id AND OwnerUserId = @owner; " +
                 $"IF @@ROWCOUNT = 0 INSERT INTO [{_table}] (Id, OwnerUserId, Data) VALUES (@id, @owner, @data);";
-            await conn.ExecuteAsync(sql, new { id = item.Id, owner = item.OwnerUserId, data = Serialize(item) }, tx);
+            await conn.ExecuteAsync(sql, new { id = item.Id, owner = Owner, data = Serialize(item) }, tx);
         }
 
         private async Task<DbConnection> OpenAsync(CancellationToken cancellationToken)

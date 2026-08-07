@@ -14,6 +14,13 @@ namespace BudgetManager.Queries.Common
     ///   1. Settings.DataDirectory when provided, otherwise
     ///   2. %AppData%\BudgetManager  (Environment.SpecialFolder.ApplicationData).
     ///
+    /// Multi-tenancy: when an authenticated user is present (<see cref="ICurrentUser.UserId"/> is
+    /// non-empty, e.g. the API validating a token), each user's files live under a per-user
+    /// subfolder "users/{ownerId}", isolating data the same way the SQL store does. With no user
+    /// (empty id — desktop offline / auth disabled) the base directory is used, unchanged. The path
+    /// is resolved per operation so a single shared instance still routes each request to the right
+    /// user's folder.
+    ///
     /// Writes are serialized per-file with a SemaphoreSlim and performed atomically
     /// (temp file + replace) so a crash mid-write cannot corrupt existing data.
     /// </summary>
@@ -23,43 +30,63 @@ namespace BudgetManager.Queries.Common
         private static readonly ConcurrentDictionary<string, SemaphoreSlim> _gates =
             new(StringComparer.OrdinalIgnoreCase);
 
-        private readonly string _filePath;
-        private readonly SemaphoreSlim _gate;
+        private readonly string _baseDir;
+        private readonly ICurrentUser _currentUser;
 
-        public JsonFileStore(IOptions<Settings> settings)
+        public JsonFileStore(IOptions<Settings> settings, ICurrentUser currentUser)
         {
-            string baseDir = JsonStoreLocation.EnsureDirectory(settings?.Value);
-
-            _filePath = Path.Combine(baseDir, $"{typeof(T).Name}.json");
-            _gate = _gates.GetOrAdd(_filePath, _ => new SemaphoreSlim(1, 1));
+            _baseDir = JsonStoreLocation.EnsureDirectory(settings?.Value);
+            _currentUser = currentUser;
         }
 
-        /// <summary>The absolute path of the JSON file backing this store.</summary>
-        public string FilePath => _filePath;
+        /// <summary>The absolute path of the JSON file backing the current user's data.</summary>
+        public string FilePath => ResolveFilePath();
+
+        /// <summary>
+        /// Resolves the backing file for the current owner, creating the per-user folder on demand.
+        /// Empty owner → base directory (backward compatible); otherwise users/{ownerId}.
+        /// </summary>
+        private string ResolveFilePath()
+        {
+            Guid owner = _currentUser?.UserId ?? Guid.Empty;
+            string dir = owner == Guid.Empty
+                ? _baseDir
+                : Path.Combine(_baseDir, "users", owner.ToString("N"));
+            Directory.CreateDirectory(dir);
+            return Path.Combine(dir, $"{typeof(T).Name}.json");
+        }
+
+        // Gate for a specific physical file (created on demand, shared across instances/types).
+        private static SemaphoreSlim GateFor(string filePath) =>
+            _gates.GetOrAdd(filePath, _ => new SemaphoreSlim(1, 1));
 
         public async Task<List<T>> ReadAllAsync(CancellationToken cancellationToken = default)
         {
-            await _gate.WaitAsync(cancellationToken);
+            string filePath = ResolveFilePath();
+            var gate = GateFor(filePath);
+            await gate.WaitAsync(cancellationToken);
             try
             {
-                return await ReadUnlockedAsync(cancellationToken);
+                return await ReadUnlockedAsync(filePath, cancellationToken);
             }
             finally
             {
-                _gate.Release();
+                gate.Release();
             }
         }
 
         public async Task WriteAllAsync(IEnumerable<T> items, CancellationToken cancellationToken = default)
         {
-            await _gate.WaitAsync(cancellationToken);
+            string filePath = ResolveFilePath();
+            var gate = GateFor(filePath);
+            await gate.WaitAsync(cancellationToken);
             try
             {
-                await WriteUnlockedAsync(items.ToList(), cancellationToken);
+                await WriteUnlockedAsync(filePath, items.ToList(), cancellationToken);
             }
             finally
             {
-                _gate.Release();
+                gate.Release();
             }
         }
 
@@ -77,14 +104,16 @@ namespace BudgetManager.Queries.Common
         public async IAsyncEnumerable<T> StreamAllAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            await _gate.WaitAsync(cancellationToken);
+            string filePath = ResolveFilePath();
+            var gate = GateFor(filePath);
+            await gate.WaitAsync(cancellationToken);
             try
             {
-                if (!File.Exists(_filePath))
+                if (!File.Exists(filePath))
                     yield break;
 
                 await using var stream = new FileStream(
-                    _filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
                 if (stream.Length == 0)
                     yield break;
@@ -100,7 +129,7 @@ namespace BudgetManager.Queries.Common
             }
             finally
             {
-                _gate.Release();
+                gate.Release();
             }
         }
 
@@ -108,52 +137,56 @@ namespace BudgetManager.Queries.Common
         {
             ArgumentNullException.ThrowIfNull(item);
 
-            await _gate.WaitAsync(cancellationToken);
+            string filePath = ResolveFilePath();
+            var gate = GateFor(filePath);
+            await gate.WaitAsync(cancellationToken);
             try
             {
-                var items = await ReadUnlockedAsync(cancellationToken);
+                var items = await ReadUnlockedAsync(filePath, cancellationToken);
                 int index = items.FindIndex(x => x.Id == item.Id);
                 if (index >= 0)
                     items[index] = item;
                 else
                     items.Add(item);
 
-                await WriteUnlockedAsync(items, cancellationToken);
+                await WriteUnlockedAsync(filePath, items, cancellationToken);
             }
             finally
             {
-                _gate.Release();
+                gate.Release();
             }
         }
 
         public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            await _gate.WaitAsync(cancellationToken);
+            string filePath = ResolveFilePath();
+            var gate = GateFor(filePath);
+            await gate.WaitAsync(cancellationToken);
             try
             {
-                var items = await ReadUnlockedAsync(cancellationToken);
+                var items = await ReadUnlockedAsync(filePath, cancellationToken);
                 int removed = items.RemoveAll(x => x.Id == id);
                 if (removed == 0)
                     return false;
 
-                await WriteUnlockedAsync(items, cancellationToken);
+                await WriteUnlockedAsync(filePath, items, cancellationToken);
                 return true;
             }
             finally
             {
-                _gate.Release();
+                gate.Release();
             }
         }
 
-        // --- helpers (assume the gate is already held) ---
+        // --- helpers (assume the gate for filePath is already held) ---
 
-        private async Task<List<T>> ReadUnlockedAsync(CancellationToken cancellationToken)
+        private static async Task<List<T>> ReadUnlockedAsync(string filePath, CancellationToken cancellationToken)
         {
-            if (!File.Exists(_filePath))
+            if (!File.Exists(filePath))
                 return new List<T>();
 
             await using var stream = new FileStream(
-                _filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
             if (stream.Length == 0)
                 return new List<T>();
@@ -164,10 +197,10 @@ namespace BudgetManager.Queries.Common
             return items ?? new List<T>();
         }
 
-        private async Task WriteUnlockedAsync(List<T> items, CancellationToken cancellationToken)
+        private static async Task WriteUnlockedAsync(string filePath, List<T> items, CancellationToken cancellationToken)
         {
             // Write to a temp file first, then atomically replace the target.
-            string tempPath = _filePath + ".tmp";
+            string tempPath = filePath + ".tmp";
 
             await using (var stream = new FileStream(
                 tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
@@ -176,10 +209,10 @@ namespace BudgetManager.Queries.Common
                 await stream.FlushAsync(cancellationToken);
             }
 
-            if (File.Exists(_filePath))
-                File.Replace(tempPath, _filePath, destinationBackupFileName: null);
+            if (File.Exists(filePath))
+                File.Replace(tempPath, filePath, destinationBackupFileName: null);
             else
-                File.Move(tempPath, _filePath);
+                File.Move(tempPath, filePath);
         }
     }
 }

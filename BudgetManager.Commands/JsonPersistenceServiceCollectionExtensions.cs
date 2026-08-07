@@ -29,21 +29,33 @@ namespace BudgetManager.Commands
             if (mode == PersistenceMode.Sql)
             {
                 services.AddSingleton<IDbConnectionFactory, SQLDbConnectionFactory>();
-                services.AddSingleton(typeof(IEntityStore<>), typeof(SqlEntityStore<>));
+                // Per-user scoping: default single-user; the API overrides with a token-based user.
+                // Singleton is safe: SystemCurrentUser is stateless and the API's replacement reads
+                // the request user via IHttpContextAccessor (AsyncLocal), also stateless.
+                services.AddSingleton<ICurrentUser, SystemCurrentUser>();
+                services.AddScoped(typeof(IEntityStore<>), typeof(SqlEntityStore<>));
             }
             else if (mode == PersistenceMode.Api)
             {
+                // Default token provider supplies no token (unauthenticated); the desktop composition
+                // root overrides IApiTokenProvider with its sign-in service when auth is configured.
+                services.AddSingleton<IApiTokenProvider, NullApiTokenProvider>();
                 services.AddSingleton(sp =>
                 {
                     var url = sp.GetRequiredService<IOptions<Settings>>().Value.ApiBaseUrl
                               ?? throw new InvalidOperationException("An ApiBaseUrl is required for API persistence.");
                     if (!url.EndsWith('/')) url += "/";
-                    return new HttpClient { BaseAddress = new Uri(url) };
+                    // BearerTokenHandler pulls a fresh token per request from the token provider.
+                    var handler = new BearerTokenHandler(sp.GetRequiredService<IApiTokenProvider>());
+                    return new HttpClient(handler) { BaseAddress = new Uri(url) };
                 });
                 services.AddSingleton(typeof(IEntityStore<>), typeof(ApiEntityStore<>));
             }
             else
             {
+                // Per-user scoping for JSON too: default single-user (base folder); the API overrides
+                // ICurrentUser with the token-based user, giving each user their own subfolder.
+                services.AddSingleton<ICurrentUser, SystemCurrentUser>();
                 services.AddSingleton(typeof(IEntityStore<>), typeof(JsonFileStore<>));
             }
 

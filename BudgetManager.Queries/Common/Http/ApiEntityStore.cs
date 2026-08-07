@@ -9,8 +9,8 @@ namespace BudgetManager.Queries.Common
     /// desktop client can run against a remote server. Uses the API's generic CRUD routes
     /// (/api/{resource}). Upsert checks existence to decide POST vs PUT.
     ///
-    /// (Authentication will be added in a later phase by attaching a bearer token to the
-    /// shared HttpClient.)
+    /// Authentication is transparent: the shared HttpClient is built with a BearerTokenHandler
+    /// that attaches the current bearer token (if any) to each request.
     /// </summary>
     public class ApiEntityStore<T> : IEntityStore<T> where T : Aggregate
     {
