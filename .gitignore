@@ -38,3 +38,4 @@ packages/
 *.log
 [Tt]humbs.db
 .DS_Store
+/BudgetManager.Api/appsettings.json
