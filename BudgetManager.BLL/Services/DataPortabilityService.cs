@@ -11,9 +11,10 @@ namespace BudgetManager.BLL.Services
     /// </summary>
     public class DataPortabilityService
     {
-        public DataPortabilityService(IOptions<Settings> settings)
+        public DataPortabilityService(IOptions<Settings> settings, ICurrentUser currentUser)
         {
-            DataDirectory = JsonStoreLocation.EnsureDirectory(settings?.Value);
+            // Back up the current user's folder (users/{owner}); on the desktop this is the empty owner.
+            DataDirectory = JsonStoreLocation.EnsureUserDirectory(settings?.Value, currentUser.UserId);
         }
 
         /// <summary>Absolute path of the folder holding the JSON data files.</summary>

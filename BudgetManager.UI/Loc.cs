@@ -59,7 +59,12 @@ namespace BudgetManager.UI
                 = "Cuando el servidor requiera inicio de sesión, use el botón Iniciar sesión después de conectar.",
             ["Sign in"] = "Iniciar sesión",
             ["Sign out"] = "Cerrar sesión",
+            ["Signed in as {0}"] = "Sesión iniciada como {0}",
             ["This server does not require sign-in."] = "Este servidor no requiere inicio de sesión.",
+            ["This server requires you to sign in before working online."]
+                = "Este servidor requiere que inicie sesión antes de trabajar en línea.",
+            ["You're not signed in, so the app will switch to offline mode."]
+                = "No has iniciado sesión, por lo que la aplicación cambiará al modo sin conexión.",
             ["Dashboard"] = "Panel",
             ["Accounts"] = "Cuentas",
             ["Transactions"] = "Transacciones",

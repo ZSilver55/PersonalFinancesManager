@@ -60,6 +60,19 @@ else
 // Owns the identity-provider config + secret so thin clients only need the API address.
 builder.Services.AddHttpClient<AuthProviderService>();
 
+// User directory: maps a login to a stable internal id (the OwnerUserId). Global (not per-user),
+// backed by the same store technology as the data.
+if (mode == PersistenceMode.Sql)
+    builder.Services.AddSingleton<IUserDirectory, SqlUserDirectory>();
+else
+    builder.Services.AddSingleton<IUserDirectory, JsonUserDirectory>();
+
+// Per-user preference settings (currency, language, safe-to-spend), owner-scoped.
+if (mode == PersistenceMode.Sql)
+    builder.Services.AddSingleton<BudgetManager.Api.Settings.IUserSettingsStore, BudgetManager.Api.Settings.SqlUserSettingsStore>();
+else
+    builder.Services.AddSingleton<BudgetManager.Api.Settings.IUserSettingsStore, BudgetManager.Api.Settings.JsonUserSettingsStore>();
+
 // Current user resolved from the request token (overrides the default single-user registration).
 // Singleton is safe: it holds no per-request state, reading the user from IHttpContextAccessor
 // (AsyncLocal) on each access — so singleton stores can depend on it without capturing a scope.
@@ -95,12 +108,22 @@ if (authEnabled)
 {
     app.UseAuthentication();
     app.UseAuthorization();
+    // After authentication: map the token to a registered user and stash the OwnerUserId.
+    app.UseMiddleware<UserContextMiddleware>();
 }
 
 // Root + Scalar stay public even when a fallback auth policy is active.
 app.MapGet("/", () => Results.Ok(new { service = "BudgetManager API", mode = mode.ToString(), authEnabled }))
    .AllowAnonymous();
 app.MapAuthEndpoints();
+app.MapSettingsEndpoints();
 app.MapBudgetEndpoints();
+
+// Seed the initial user so that account maps to the existing base data (OwnerUserId = empty).
+using (var scope = app.Services.CreateScope())
+{
+    var directory = scope.ServiceProvider.GetRequiredService<IUserDirectory>();
+    await directory.EnsureSeedAsync(Guid.Empty, "zaleta55@hotmail.com");
+}
 
 app.Run();

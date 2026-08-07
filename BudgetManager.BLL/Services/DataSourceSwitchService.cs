@@ -13,6 +13,12 @@ namespace BudgetManager.BLL.Services
     /// </summary>
     public class DataSourceSwitchService
     {
+        private readonly IApiTokenProvider _tokens;
+
+        // The token provider lets the migration authenticate against a protected API (the same
+        // bearer the app uses). Optional so it also works when the API requires no sign-in.
+        public DataSourceSwitchService(IApiTokenProvider tokens) => _tokens = tokens;
+
         public async Task<int> MigrateAsync(Settings settings, PersistenceMode from, PersistenceMode to)
         {
             if (from == to) return 0;
@@ -29,7 +35,7 @@ namespace BudgetManager.BLL.Services
             return total;
         }
 
-        private static HttpClient? BuildHttpClient(Settings settings, PersistenceMode from, PersistenceMode to)
+        private HttpClient? BuildHttpClient(Settings settings, PersistenceMode from, PersistenceMode to)
         {
             if (from != PersistenceMode.Api && to != PersistenceMode.Api)
                 return null;
@@ -38,7 +44,8 @@ namespace BudgetManager.BLL.Services
             if (string.IsNullOrWhiteSpace(url))
                 throw new InvalidOperationException("An API address is required for online mode.");
             if (!url.EndsWith('/')) url += "/";
-            return new HttpClient { BaseAddress = new Uri(url) };
+            // Attach the bearer token so the copy works against an authenticated API.
+            return new HttpClient(new BearerTokenHandler(_tokens)) { BaseAddress = new Uri(url) };
         }
 
         private static IEntityStore<T> Build<T>(PersistenceMode mode, Settings settings, HttpClient? http) where T : Aggregate

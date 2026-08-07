@@ -20,6 +20,22 @@ namespace BudgetManager.Api.Endpoints
                .WithTags("Auth")
                .AllowAnonymous();
 
+            // Maps the logged-in user to their internal id (provisioned by UserContextMiddleware).
+            // Requires authentication (no AllowAnonymous), so an unauthenticated call returns 401.
+            app.MapGet("/auth/me", (HttpContext ctx) =>
+            {
+                if (ctx.User?.Identity?.IsAuthenticated != true)
+                    return Results.Unauthorized();
+
+                Guid id = ctx.Items.TryGetValue(UserContextMiddleware.OwnerIdItemKey, out var v) && v is Guid g
+                    ? g
+                    : Guid.Empty;
+                var email = ctx.User.FindFirst("email")?.Value;
+                var name = ctx.User.FindFirst("name")?.Value;
+                return Results.Ok(new { id, email, name });
+            })
+               .WithTags("Auth");
+
             app.MapPost("/auth/token",
                 async ([FromBody] TokenExchangeRequest req, [FromServices] AuthProviderService auth, CancellationToken ct) =>
                 {

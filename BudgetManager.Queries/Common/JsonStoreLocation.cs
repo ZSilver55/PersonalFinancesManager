@@ -28,5 +28,20 @@ namespace BudgetManager.Queries.Common
             Directory.CreateDirectory(dir);
             return dir;
         }
+
+        /// <summary>
+        /// Per-user data directory: {base}/users/{owner}. All entity data lives here so the base
+        /// path itself only holds cross-cutting files (Users.json, settings.json) and the users folder.
+        /// </summary>
+        public static string UserDirectory(Settings? settings, Guid owner)
+            => Path.Combine(ResolveDirectory(settings), "users", owner.ToString("N"));
+
+        /// <summary>Resolves the per-user directory and ensures it exists on disk.</summary>
+        public static string EnsureUserDirectory(Settings? settings, Guid owner)
+        {
+            var dir = UserDirectory(settings, owner);
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
     }
 }

@@ -23,16 +23,18 @@ namespace BudgetManager.Commands
     {
         public static IServiceCollection AddBudgetPersistence(this IServiceCollection services, PersistenceMode mode)
         {
+            // Current user: default single-user (empty owner); the API overrides this with a
+            // token-based user. Registered for all modes so any store or service can depend on it.
+            // Singleton is safe: SystemCurrentUser is stateless and the API's replacement reads the
+            // request user via IHttpContextAccessor (AsyncLocal), also stateless.
+            services.AddSingleton<ICurrentUser, SystemCurrentUser>();
+
             // Entity store: SQL Server (server), remote Web API (desktop online), or local JSON
             // files (desktop offline). All implement IEntityStore<T>, so the commands, queries,
             // controllers and services are identical regardless of the backing store.
             if (mode == PersistenceMode.Sql)
             {
                 services.AddSingleton<IDbConnectionFactory, SQLDbConnectionFactory>();
-                // Per-user scoping: default single-user; the API overrides with a token-based user.
-                // Singleton is safe: SystemCurrentUser is stateless and the API's replacement reads
-                // the request user via IHttpContextAccessor (AsyncLocal), also stateless.
-                services.AddSingleton<ICurrentUser, SystemCurrentUser>();
                 services.AddScoped(typeof(IEntityStore<>), typeof(SqlEntityStore<>));
             }
             else if (mode == PersistenceMode.Api)
@@ -53,9 +55,7 @@ namespace BudgetManager.Commands
             }
             else
             {
-                // Per-user scoping for JSON too: default single-user (base folder); the API overrides
-                // ICurrentUser with the token-based user, giving each user their own subfolder.
-                services.AddSingleton<ICurrentUser, SystemCurrentUser>();
+                // JSON files under users/{owner}; the API sets the owner from the token per request.
                 services.AddSingleton(typeof(IEntityStore<>), typeof(JsonFileStore<>));
             }
 

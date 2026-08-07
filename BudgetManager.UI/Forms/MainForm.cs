@@ -30,6 +30,7 @@ namespace BudgetManager.UI.Forms
         private readonly AppSettingsService _appSettings;
         private readonly DataSourceSwitchService _switch;
         private readonly DesktopAuthService _auth;
+        private readonly IServiceProvider _provider;
 
         private readonly ComboBox _cboProfile = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 220 };
         private readonly TabControl _tabs = new() { Dock = DockStyle.Fill };
@@ -37,6 +38,8 @@ namespace BudgetManager.UI.Forms
         private Label _lblProfile = null!;
         private Button _btnManage = null!, _btnOpen = null!, _btnExport = null!, _btnImport = null!, _btnRefresh = null!, _btnSettings = null!;
         private Button? _btnSignIn;
+        private Label? _lblSignedIn;
+        private bool _online;
         private bool _suppressTabEvent;
 
         public MainForm(
@@ -54,7 +57,8 @@ namespace BudgetManager.UI.Forms
             DataPortabilityService data,
             AppSettingsService appSettings,
             DataSourceSwitchService switchService,
-            DesktopAuthService auth)
+            DesktopAuthService auth,
+            IServiceProvider provider)
         {
             _profiles = profiles;
             _accountsCtl = accounts;
@@ -71,6 +75,7 @@ namespace BudgetManager.UI.Forms
             _appSettings = appSettings;
             _switch = switchService;
             _auth = auth;
+            _provider = provider;
 
             BuildUi();
 
@@ -114,11 +119,13 @@ namespace BudgetManager.UI.Forms
 
             // Sign-in only makes sense online (API mode); it authenticates against the server's provider.
             var st = _appSettings.LoadSettings();
-            bool online = st.PersistenceMode == PersistenceMode.Api && !string.IsNullOrWhiteSpace(st.ApiBaseUrl);
-            if (online)
+            _online = st.PersistenceMode == PersistenceMode.Api && !string.IsNullOrWhiteSpace(st.ApiBaseUrl);
+            if (_online)
             {
                 _btnSignIn = MakeButton(async (_, _) => await ToggleSignInAsync());
                 flow.Controls.Add(_btnSignIn);
+                _lblSignedIn = new Label { AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(8, 6, 0, 0), ForeColor = SystemColors.GrayText };
+                flow.Controls.Add(_lblSignedIn);
                 _auth.StateChanged += () => { if (IsHandleCreated) BeginInvoke((Action)UpdateSignInText); };
             }
 
@@ -149,7 +156,54 @@ namespace BudgetManager.UI.Forms
         private void UpdateSignInText()
         {
             if (_btnSignIn is null) return;
-            _btnSignIn.Text = _auth.IsSignedIn ? Loc.T("Sign out") : Loc.T("Sign in");
+            bool signedIn = _auth.IsSignedIn;
+            _btnSignIn.Text = signedIn ? Loc.T("Sign out") : Loc.T("Sign in");
+
+            if (_lblSignedIn is not null)
+            {
+                var email = _auth.SignedInEmail;
+                _lblSignedIn.Text = signedIn && !string.IsNullOrEmpty(email)
+                    ? Loc.F("Signed in as {0}", email)
+                    : "";
+            }
+        }
+
+        /// <summary>
+        /// Ensures online mode is permitted for the given API address: if the server requires
+        /// sign-in and the user isn't already authenticated, prompt an interactive login. Returns
+        /// true only when online mode may proceed (server open, or user signed in).
+        /// </summary>
+        private async Task<bool> EnsureOnlineAuthAsync(string? apiBaseUrl)
+        {
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+
+                if (!await _auth.ServerRequiresAuthAsync(apiBaseUrl))
+                    return true; // server doesn't enforce sign-in
+
+                if (_auth.IsSignedIn)
+                    return true; // already authenticated (e.g. persisted session)
+
+                Cursor = Cursors.Default;
+                MessageBox.Show(this, Loc.T("This server requires you to sign in before working online."),
+                    Loc.T("Sign in"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                Cursor = Cursors.WaitCursor;
+                await _auth.SignInAsync(apiBaseUrl);
+                return _auth.IsSignedIn;
+            }
+            catch (Exception ex)
+            {
+                Cursor = Cursors.Default;
+                MessageBox.Show(this, ex.Message, Loc.T("Sign in"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+                UpdateSignInText();
+            }
         }
 
         private async Task ToggleSignInAsync()
@@ -234,6 +288,14 @@ namespace BudgetManager.UI.Forms
             var targetMode = dlg.Online ? PersistenceMode.Api : PersistenceMode.Json;
             bool urlChanged = !string.Equals(currentUrl, s.ApiBaseUrl, StringComparison.OrdinalIgnoreCase);
 
+            // Online mode against a protected server requires an authenticated user. Verify (and
+            // prompt sign-in if needed) before migrating; abort the switch if the user isn't logged in.
+            if (targetMode == PersistenceMode.Api && (targetMode != currentMode || urlChanged))
+            {
+                if (!await EnsureOnlineAuthAsync(s.ApiBaseUrl))
+                    return; // stay offline; online mode is not allowed without being signed in
+            }
+
             // Switching between offline (JSON) and online (API): migrate the data, then restart
             // so the new store is wired at startup.
             if (targetMode != currentMode)
@@ -249,6 +311,12 @@ namespace BudgetManager.UI.Forms
                     int migrated = await _switch.MigrateAsync(s, currentMode, targetMode);
                     s.PersistenceMode = targetMode;
                     _appSettings.Save(s);
+
+                    // Going offline: the data now lives locally, so drop the online session
+                    // (clears the persisted token) — the user signs in again next time they go online.
+                    if (targetMode == PersistenceMode.Json)
+                        _auth.SignOut();
+
                     MessageBox.Show(this, Loc.F("Migrated {0} record(s). The app will restart now.", migrated),
                         Loc.T("Settings"), MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
@@ -278,6 +346,10 @@ namespace BudgetManager.UI.Forms
             s.PersistenceMode = currentMode;
             _appSettings.Save(s);
 
+            // Online: also persist the preference subset to the server so it roams with the account.
+            if (currentMode == PersistenceMode.Api)
+                await SaveServerSettingsAsync(s);
+
             if (!string.Equals(currentLang, s.Language, StringComparison.OrdinalIgnoreCase))
             {
                 Loc.SetLanguage(s.Language);
@@ -289,7 +361,28 @@ namespace BudgetManager.UI.Forms
 
         private async Task InitializeAsync()
         {
-            await ReloadProfilesAsync();
+            // Online mode against a protected server needs a valid session before any API call,
+            // otherwise the first load (profiles) fails with 401. Ensure sign-in first; if the user
+            // ends up unauthenticated (no session and they didn't sign in), fall back to offline mode.
+            if (_online && !await EnsureStartupAuthAsync())
+            {
+                SwitchToOffline();
+                return;
+            }
+
+            // Online: pull the user's preferences from the server and apply them locally.
+            if (_online)
+                await ApplyServerSettingsAsync();
+
+            try
+            {
+                await ReloadProfilesAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, Loc.T("Error"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
             // Post any due recurring transactions across all accounts at launch so the
             // dashboard and balances are up to date even before the Transactions tab opens.
@@ -301,6 +394,118 @@ namespace BudgetManager.UI.Forms
             catch (Exception ex) { MessageBox.Show(this, ex.Message, Loc.T("Interest"), MessageBoxButtons.OK, MessageBoxIcon.Warning); }
 
             await RefreshActiveTabAsync();
+        }
+
+        /// <summary>
+        /// Ensures a usable session at startup for online mode. Returns true when data loads may
+        /// proceed: the server doesn't require auth, a persisted session was silently refreshed, or
+        /// the user just signed in. Returns false (skip loads) if the user can't/won't authenticate.
+        /// </summary>
+        private async Task<bool> EnsureStartupAuthAsync()
+        {
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+
+                if (!await _auth.ServerRequiresAuthAsync())
+                    return true; // server is open
+
+                // Try a silent session first (persisted refresh token from a previous sign-in).
+                if (!string.IsNullOrEmpty(await _auth.GetAccessTokenAsync()))
+                    return true;
+
+                Cursor = Cursors.Default;
+                MessageBox.Show(this, Loc.T("This server requires you to sign in before working online."),
+                    Loc.T("Sign in"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                Cursor = Cursors.WaitCursor;
+                await _auth.SignInAsync();
+                return !string.IsNullOrEmpty(await _auth.GetAccessTokenAsync());
+            }
+            catch (Exception ex)
+            {
+                Cursor = Cursors.Default;
+                MessageBox.Show(this, ex.Message, Loc.T("Sign in"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+                UpdateSignInText();
+            }
+        }
+
+        /// <summary>Pulls the signed-in user's preferences from the API and applies them locally (best-effort).</summary>
+        private async Task ApplyServerSettingsAsync()
+        {
+            if (_provider.GetService(typeof(Services.ApiUserSettingsClient)) is not Services.ApiUserSettingsClient client)
+                return;
+            try
+            {
+                var prefs = await client.GetAsync();
+                if (prefs is null) return;
+
+                var s = _appSettings.LoadSettings();
+                if (!string.IsNullOrWhiteSpace(prefs.Language)) s.Language = prefs.Language;
+                if (!string.IsNullOrWhiteSpace(prefs.DefaultCurrency)) s.DefaultCurrency = prefs.DefaultCurrency;
+                s.SafetyBuffer = prefs.SafetyBuffer;
+                s.ReserveForGoals = prefs.ReserveForGoals;
+                _appSettings.Save(s);
+
+                Loc.SetLanguage(s.Language);
+                ApplyChromeText();
+                BuildTabs();
+            }
+            catch
+            {
+                // Best-effort: fall back to whatever is stored locally.
+            }
+        }
+
+        /// <summary>Saves the user's preferences to the API (online only; best-effort with a message on failure).</summary>
+        private async Task SaveServerSettingsAsync(Settings s)
+        {
+            if (_provider.GetService(typeof(Services.ApiUserSettingsClient)) is not Services.ApiUserSettingsClient client)
+                return;
+            try
+            {
+                await client.SaveAsync(new UserPreferences
+                {
+                    SchemaVersion = Settings.CurrentSchemaVersion,
+                    DefaultCurrency = s.DefaultCurrency,
+                    Language = s.Language,
+                    SafetyBuffer = s.SafetyBuffer,
+                    ReserveForGoals = s.ReserveForGoals
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, Loc.T("Settings"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        /// <summary>
+        /// Falls back to offline (local JSON) mode when online can't be authenticated. Persists the
+        /// mode, clears any stale session, and restarts so the local store is wired at startup. No
+        /// data migration happens (there's no authenticated server to pull from).
+        /// </summary>
+        private void SwitchToOffline()
+        {
+            try
+            {
+                var s = _appSettings.LoadSettings();
+                s.PersistenceMode = PersistenceMode.Json;
+                _appSettings.Save(s);
+                _auth.SignOut(); // clear any partial/expired session
+            }
+            catch
+            {
+                // Best effort; still restart into offline below.
+            }
+
+            MessageBox.Show(this, Loc.T("You're not signed in, so the app will switch to offline mode."),
+                Loc.T("Sign in"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+            Application.Restart();
         }
 
         private async Task ReloadProfilesAsync()

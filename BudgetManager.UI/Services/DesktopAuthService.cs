@@ -36,7 +36,13 @@ namespace BudgetManager.UI.Services
         private string? _refreshToken;
         private DateTime _expiresAtUtc = DateTime.MinValue;
 
-        public DesktopAuthService(IOptions<Settings> settings) => _settings = settings;
+        public DesktopAuthService(IOptions<Settings> settings)
+        {
+            _settings = settings;
+            // Restore a persisted refresh token so sign-in survives an app restart (mode switches
+            // restart the app). GetAccessTokenAsync will silently exchange it for a fresh token.
+            _refreshToken = LoadRefreshToken();
+        }
 
         /// <summary>Raised when sign-in state changes so the UI can refresh (e.g. button label).</summary>
         public event Action? StateChanged;
@@ -52,14 +58,28 @@ namespace BudgetManager.UI.Services
         // id_token is used as the bearer; falls back to access_token for providers that issue a JWT one.
         private string? BearerToken => _idToken ?? _accessToken;
 
-        private string ApiBase
+        /// <summary>The signed-in user's email (or name) read from the id_token, if available.</summary>
+        public string? SignedInEmail =>
+            ReadClaim(_idToken, "email") ?? ReadClaim(_idToken, "name");
+
+        private string ResolveApiBase(string? overrideUrl = null)
         {
-            get
-            {
-                var url = _settings.Value.ApiBaseUrl
-                          ?? throw new InvalidOperationException("An API address is required to sign in.");
-                return url.EndsWith('/') ? url : url + "/";
-            }
+            var url = !string.IsNullOrWhiteSpace(overrideUrl) ? overrideUrl : _settings.Value.ApiBaseUrl;
+            if (string.IsNullOrWhiteSpace(url))
+                throw new InvalidOperationException("An API address is required to sign in.");
+            return url.EndsWith('/') ? url : url + "/";
+        }
+
+        /// <summary>
+        /// Whether the API at the given address (or the configured one) requires sign-in. Used to
+        /// gate online mode: the desktop should not go online against a protected server unless the
+        /// user is authenticated.
+        /// </summary>
+        public async Task<bool> ServerRequiresAuthAsync(string? apiBaseUrl = null, CancellationToken cancellationToken = default)
+        {
+            var config = await Http.GetFromJsonAsync<AuthConfig>(
+                ResolveApiBase(apiBaseUrl) + "auth/config", cancellationToken);
+            return config?.Enabled == true;
         }
 
         public async Task<string?> GetAccessTokenAsync(CancellationToken cancellationToken = default)
@@ -86,13 +106,16 @@ namespace BudgetManager.UI.Services
             }
         }
 
-        /// <summary>Runs the interactive browser sign-in. Throws on error/cancellation.</summary>
-        public async Task SignInAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Runs the interactive browser sign-in. Throws on error/cancellation. An explicit
+        /// <paramref name="apiBaseUrl"/> lets the caller sign in against a not-yet-active address
+        /// (e.g. while still offline, before switching online).
+        /// </summary>
+        public async Task SignInAsync(string? apiBaseUrl = null, CancellationToken cancellationToken = default)
         {
-            if (!IsConfigured)
-                throw new InvalidOperationException("Set the API address in Settings first.");
+            string apiBase = ResolveApiBase(apiBaseUrl);
 
-            var config = await Http.GetFromJsonAsync<AuthConfig>(ApiBase + "auth/config", cancellationToken);
+            var config = await Http.GetFromJsonAsync<AuthConfig>(apiBase + "auth/config", cancellationToken);
             if (config is null || !config.Enabled)
                 throw new InvalidOperationException("This server does not require sign-in.");
             if (string.IsNullOrWhiteSpace(config.AuthorizationEndpoint) || string.IsNullOrWhiteSpace(config.ClientId))
@@ -150,14 +173,13 @@ namespace BudgetManager.UI.Services
             await _gate.WaitAsync(cancellationToken);
             try
             {
-                await ExchangeAsync(new { code, codeVerifier = verifier, redirectUri }, cancellationToken);
+                // ExchangeAsync raises StateChanged on success.
+                await ExchangeAsync(apiBase, new { code, codeVerifier = verifier, redirectUri }, cancellationToken);
             }
             finally
             {
                 _gate.Release();
             }
-
-            StateChanged?.Invoke();
         }
 
         /// <summary>Clears cached tokens (local sign-out).</summary>
@@ -170,11 +192,11 @@ namespace BudgetManager.UI.Services
         // ---- internals ------------------------------------------------------------------------
 
         private Task RefreshCoreAsync(CancellationToken cancellationToken) =>
-            ExchangeAsync(new { refreshToken = _refreshToken }, cancellationToken);
+            ExchangeAsync(ResolveApiBase(), new { refreshToken = _refreshToken }, cancellationToken);
 
-        private async Task ExchangeAsync(object requestBody, CancellationToken cancellationToken)
+        private async Task ExchangeAsync(string apiBase, object requestBody, CancellationToken cancellationToken)
         {
-            using var response = await Http.PostAsJsonAsync(ApiBase + "auth/token", requestBody, cancellationToken);
+            using var response = await Http.PostAsJsonAsync(apiBase + "auth/token", requestBody, cancellationToken);
             string body = await response.Content.ReadAsStringAsync(cancellationToken);
             if (!response.IsSuccessStatusCode)
                 throw new InvalidOperationException($"Sign-in failed ({(int)response.StatusCode}): {body}");
@@ -192,6 +214,38 @@ namespace BudgetManager.UI.Services
             int expiresIn = root.TryGetProperty("expires_in", out var ei) && ei.TryGetInt32(out var v) ? v : 3600;
             // Refresh a minute early to avoid using a token that expires mid-request.
             _expiresAtUtc = DateTime.UtcNow.AddSeconds(Math.Max(30, expiresIn - 60));
+
+            // Persist the refresh token so the session survives an app restart.
+            SaveRefreshToken(_refreshToken);
+
+            // Notify the UI (covers both interactive sign-in and silent refresh, e.g. at startup).
+            StateChanged?.Invoke();
+        }
+
+        /// <summary>Reads a string claim from a JWT's payload without validating the signature.</summary>
+        private static string? ReadClaim(string? jwt, string claim)
+        {
+            if (string.IsNullOrEmpty(jwt)) return null;
+            var parts = jwt.Split('.');
+            if (parts.Length < 2) return null;
+            try
+            {
+                using var doc = JsonDocument.Parse(Base64UrlDecodeToString(parts[1]));
+                return doc.RootElement.TryGetProperty(claim, out var value) && value.ValueKind == JsonValueKind.String
+                    ? value.GetString()
+                    : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string Base64UrlDecodeToString(string segment)
+        {
+            string s = segment.Replace('-', '+').Replace('_', '/');
+            switch (s.Length % 4) { case 2: s += "=="; break; case 3: s += "="; break; }
+            return Encoding.UTF8.GetString(Convert.FromBase64String(s));
         }
 
         private void ClearCore()
@@ -200,6 +254,46 @@ namespace BudgetManager.UI.Services
             _idToken = null;
             _refreshToken = null;
             _expiresAtUtc = DateTime.MinValue;
+            SaveRefreshToken(null);
+        }
+
+        // ---- refresh-token persistence (DPAPI, current user) ----------------------------------
+
+        private string TokenFilePath =>
+            Path.Combine(JsonStoreLocation.EnsureDirectory(_settings.Value), "auth.dat");
+
+        private void SaveRefreshToken(string? token)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(token))
+                {
+                    if (File.Exists(TokenFilePath)) File.Delete(TokenFilePath);
+                    return;
+                }
+                byte[] protectedBytes = ProtectedData.Protect(
+                    Encoding.UTF8.GetBytes(token), optionalEntropy: null, scope: DataProtectionScope.CurrentUser);
+                File.WriteAllBytes(TokenFilePath, protectedBytes);
+            }
+            catch
+            {
+                // Persistence is best-effort; a failure just means the user signs in again next time.
+            }
+        }
+
+        private string? LoadRefreshToken()
+        {
+            try
+            {
+                if (!File.Exists(TokenFilePath)) return null;
+                byte[] unprotected = ProtectedData.Unprotect(
+                    File.ReadAllBytes(TokenFilePath), optionalEntropy: null, scope: DataProtectionScope.CurrentUser);
+                return Encoding.UTF8.GetString(unprotected);
+            }
+            catch
+            {
+                return null; // Unreadable/foreign token: treat as signed out.
+            }
         }
 
         private static int GetFreePort()

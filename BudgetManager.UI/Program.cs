@@ -80,6 +80,10 @@ namespace BudgetManager.UI
             services.AddSingleton<Services.DesktopAuthService>();
             services.AddSingleton<IApiTokenProvider>(sp => sp.GetRequiredService<Services.DesktopAuthService>());
 
+            // Online-only: reads/writes the user's preference settings via the API.
+            if (mode == PersistenceMode.Api)
+                services.AddSingleton<Services.ApiUserSettingsClient>();
+
             // Forms.
             services.AddTransient<MainForm>();
         }
