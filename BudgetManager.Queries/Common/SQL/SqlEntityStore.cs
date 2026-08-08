@@ -95,9 +95,13 @@ namespace BudgetManager.Queries.Common.SQL
         {
             // Stamp ownership from the current user, never from the incoming payload.
             item.OwnerUserId = Owner;
+            // Atomic update-or-insert (idempotent). Keyed by Id AND owner so it stays within the
+            // per-user boundary; HOLDLOCK closes the update/insert race.
             var sql =
-                $"UPDATE [{_table}] SET Data = @data WHERE Id = @id AND OwnerUserId = @owner; " +
-                $"IF @@ROWCOUNT = 0 INSERT INTO [{_table}] (Id, OwnerUserId, Data) VALUES (@id, @owner, @data);";
+                $"MERGE [{_table}] WITH (HOLDLOCK) AS t " +
+                $"USING (SELECT @id AS Id, @owner AS OwnerUserId) AS s ON (t.Id = s.Id AND t.OwnerUserId = s.OwnerUserId) " +
+                $"WHEN MATCHED THEN UPDATE SET Data = @data " +
+                $"WHEN NOT MATCHED THEN INSERT (Id, OwnerUserId, Data) VALUES (@id, @owner, @data);";
             await conn.ExecuteAsync(sql, new { id = item.Id, owner = Owner, data = Serialize(item) }, tx);
         }
 

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BudgetManager — Terms of Service</title>
+<meta name="description" content="BudgetManager Terms of Service / Condiciones de Servicio." />
+<link rel="icon" type="image/png" sizes="32x32" href="favicon.png" />
+<link rel="icon" type="image/png" sizes="128x128" href="icon.png" />
+<link rel="apple-touch-icon" href="icon.png" />
+<meta name="theme-color" content="#f7931a" />
+<style>
+  :root {
+    --bg: #fbf7f1;
+    --surface: #ffffff;
+    --ink: #2b1d09;
+    --ink-soft: #6b5a41;
+    --brand: #f7931a;
+    --brand-dark: #d77b0c;
+    --brand-tint: #fdefd9;
+    --border: #f0e4d2;
+    --shadow: 0 10px 30px rgba(120, 74, 6, 0.10);
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink); background: var(--bg); line-height: 1.7; -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--brand-dark); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { width: min(820px, 92%); margin: 0 auto; }
+
+  header {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(251, 247, 241, 0.85); backdrop-filter: saturate(140%) blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav { width: min(1120px, 92%); margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 68px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.15rem; letter-spacing: -0.02em; color: var(--ink); }
+  .logo img { width: 32px; height: 32px; display: block; }
+  .nav-right { display: flex; align-items: center; gap: 18px; }
+  .btn { display: inline-block; background: transparent; color: var(--brand-dark); border: 1px solid var(--border); font-weight: 600; padding: 8px 16px; border-radius: 999px; cursor: pointer; font-size: .9rem; }
+  .btn:hover { background: var(--brand-tint); text-decoration: none; }
+  .lang { font-weight: 700; letter-spacing: .03em; padding: 8px 13px; }
+
+  .legal { padding: 56px 0 80px; }
+  .legal h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); letter-spacing: -0.02em; margin-bottom: 8px; }
+  .legal .updated { color: var(--ink-soft); font-size: .92rem; margin-bottom: 10px; }
+  .legal .note { background: var(--brand-tint); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; color: var(--brand-dark); font-size: .92rem; margin: 22px 0 36px; }
+  .legal h2 { font-size: 1.25rem; letter-spacing: -0.01em; margin: 34px 0 10px; }
+  .legal p { color: #40340f; margin-bottom: 12px; }
+  .legal .muted { color: var(--ink-soft); }
+
+  footer { background: #241a0b; color: #c3b291; padding: 34px 0; text-align: center; font-size: .88rem; }
+  footer a { color: #fff; }
+
+  @media (max-width: 560px) { .logo span.name { display: none; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a class="logo" href="index.html">
+      <img src="icon.png" alt="BudgetManager" />
+      <span class="name">BudgetManager</span>
+    </a>
+    <div class="nav-right">
+      <a class="btn" href="index.html" data-en="← Home" data-es="← Inicio">← Home</a>
+      <button id="langToggle" class="btn lang" type="button" aria-label="Switch language">ES</button>
+    </div>
+  </div>
+</header>
+
+<main class="legal">
+  <div class="wrap">
+    <h1 data-en="Terms of Service" data-es="Condiciones de Servicio">Terms of Service</h1>
+    <div class="updated" data-en="Last updated: August 7, 2026" data-es="Última actualización: 7 de agosto de 2026">Last updated: August 7, 2026</div>
+
+    <div class="note" data-en="Summary: BudgetManager is a personal finance tool. It is provided as-is, it is not financial advice, and you are responsible for your own data and decisions." data-es="Resumen: BudgetManager es una herramienta de finanzas personales. Se ofrece tal cual, no constituye asesoría financiera, y tú eres responsable de tus propios datos y decisiones.">Summary: BudgetManager is a personal finance tool. It is provided as-is, it is not financial advice, and you are responsible for your own data and decisions.</div>
+
+    <h2 data-en="1. Acceptance of these terms" data-es="1. Aceptación de estas condiciones">1. Acceptance of these terms</h2>
+    <p data-en="By downloading, accessing, or using BudgetManager (the “Service”), you agree to these Terms of Service. If you do not agree, please do not use the Service." data-es="Al descargar, acceder o utilizar BudgetManager (el “Servicio”), aceptas estas Condiciones de Servicio. Si no estás de acuerdo, por favor no utilices el Servicio.">By downloading, accessing, or using BudgetManager (the “Service”), you agree to these Terms of Service. If you do not agree, please do not use the Service.</p>
+
+    <h2 data-en="2. The Service" data-es="2. El Servicio">2. The Service</h2>
+    <p data-en="BudgetManager helps you record accounts and transactions, set savings goals, and plan your personal finances. It can run entirely on your own device (offline) or, optionally, sync your data to our servers when you sign in (online)." data-es="BudgetManager te ayuda a registrar cuentas y transacciones, definir metas de ahorro y planear tus finanzas personales. Puede funcionar totalmente en tu propio dispositivo (sin conexión) o, de forma opcional, sincronizar tus datos con nuestros servidores al iniciar sesión (en línea).">BudgetManager helps you record accounts and transactions, set savings goals, and plan your personal finances. It can run entirely on your own device (offline) or, optionally, sync your data to our servers when you sign in (online).</p>
+
+    <h2 data-en="3. Accounts and sign-in" data-es="3. Cuentas e inicio de sesión">3. Accounts and sign-in</h2>
+    <p data-en="Online features require signing in with a third-party provider (such as Google). You are responsible for keeping access to that account secure. You must provide accurate information and be old enough to enter into these terms in your jurisdiction." data-es="Las funciones en línea requieren iniciar sesión con un proveedor externo (como Google). Eres responsable de mantener seguro el acceso a esa cuenta. Debes proporcionar información veraz y tener la edad suficiente para aceptar estas condiciones en tu jurisdicción.">Online features require signing in with a third-party provider (such as Google). You are responsible for keeping access to that account secure. You must provide accurate information and be old enough to enter into these terms in your jurisdiction.</p>
+
+    <h2 data-en="4. Your data" data-es="4. Tus datos">4. Your data</h2>
+    <p data-en="You own the financial data you enter. In offline mode it stays on your device. In online mode it is stored on our servers and kept private to your account; we do not sell your data. You are responsible for keeping your own backups." data-es="Los datos financieros que ingresas son tuyos. En modo sin conexión permanecen en tu dispositivo. En modo en línea se almacenan en nuestros servidores y se mantienen privados para tu cuenta; no vendemos tus datos. Eres responsable de conservar tus propios respaldos.">You own the financial data you enter. In offline mode it stays on your device. In online mode it is stored on our servers and kept private to your account; we do not sell your data. You are responsible for keeping your own backups.</p>
+
+    <h2 data-en="5. Acceptable use" data-es="5. Uso aceptable">5. Acceptable use</h2>
+    <p data-en="You agree not to misuse the Service: no illegal activity, no attempts to break, overload, or gain unauthorized access to the systems or other users’ data, and no reverse engineering except as permitted by law." data-es="Aceptas no hacer mal uso del Servicio: nada de actividades ilegales, ni intentos de vulnerar, sobrecargar u obtener acceso no autorizado a los sistemas o a los datos de otros usuarios, ni ingeniería inversa salvo lo permitido por la ley.">You agree not to misuse the Service: no illegal activity, no attempts to break, overload, or gain unauthorized access to the systems or other users’ data, and no reverse engineering except as permitted by law.</p>
+
+    <h2 data-en="6. Not financial advice" data-es="6. No es asesoría financiera">6. Not financial advice</h2>
+    <p data-en="BudgetManager provides tools and calculations for informational purposes only. It does not provide financial, investment, tax, or legal advice. Figures such as “safe to spend” and projections are estimates. Decisions you make based on the Service are your own responsibility." data-es="BudgetManager ofrece herramientas y cálculos únicamente con fines informativos. No proporciona asesoría financiera, de inversión, fiscal ni legal. Cifras como “puedes gastar” y las proyecciones son estimaciones. Las decisiones que tomes con base en el Servicio son tu responsabilidad.">BudgetManager provides tools and calculations for informational purposes only. It does not provide financial, investment, tax, or legal advice. Figures such as “safe to spend” and projections are estimates. Decisions you make based on the Service are your own responsibility.</p>
+
+    <h2 data-en="7. Availability and “as is”" data-es="7. Disponibilidad y “tal cual”">7. Availability and “as is”</h2>
+    <p data-en="The Service is provided “as is” and “as available,” without warranties of any kind. We do not guarantee that it will be uninterrupted, error-free, or that data will never be lost. We may change, suspend, or discontinue features at any time." data-es="El Servicio se proporciona “tal cual” y “según disponibilidad”, sin garantías de ningún tipo. No garantizamos que sea ininterrumpido, libre de errores, ni que los datos nunca se pierdan. Podemos cambiar, suspender o descontinuar funciones en cualquier momento.">The Service is provided “as is” and “as available,” without warranties of any kind. We do not guarantee that it will be uninterrupted, error-free, or that data will never be lost. We may change, suspend, or discontinue features at any time.</p>
+
+    <h2 data-en="8. Limitation of liability" data-es="8. Limitación de responsabilidad">8. Limitation of liability</h2>
+    <p data-en="To the maximum extent permitted by law, BudgetManager and its owner will not be liable for any indirect, incidental, or consequential damages, or for any loss of data or profits, arising from your use of the Service." data-es="En la máxima medida permitida por la ley, BudgetManager y su titular no serán responsables por daños indirectos, incidentales o consecuentes, ni por la pérdida de datos o de ganancias que resulten del uso del Servicio.">To the maximum extent permitted by law, BudgetManager and its owner will not be liable for any indirect, incidental, or consequential damages, or for any loss of data or profits, arising from your use of the Service.</p>
+
+    <h2 data-en="9. Paid plans" data-es="9. Planes de pago">9. Paid plans</h2>
+    <p data-en="The Service may offer free and paid plans. If paid subscriptions are introduced, their price, billing, and cancellation terms will be presented before you purchase, and these Terms will apply together with any plan-specific terms." data-es="El Servicio puede ofrecer planes gratuitos y de pago. Si se introducen suscripciones de pago, su precio, facturación y condiciones de cancelación se presentarán antes de la compra, y estas Condiciones aplicarán junto con los términos específicos de cada plan.">The Service may offer free and paid plans. If paid subscriptions are introduced, their price, billing, and cancellation terms will be presented before you purchase, and these Terms will apply together with any plan-specific terms.</p>
+
+    <h2 data-en="10. Changes and termination" data-es="10. Cambios y terminación">10. Changes and termination</h2>
+    <p data-en="We may update these Terms from time to time; continued use after changes means you accept them. We may suspend or end access if these Terms are violated. You may stop using the Service at any time." data-es="Podemos actualizar estas Condiciones ocasionalmente; el uso continuado tras los cambios significa que las aceptas. Podemos suspender o terminar el acceso si se incumplen estas Condiciones. Puedes dejar de usar el Servicio en cualquier momento.">We may update these Terms from time to time; continued use after changes means you accept them. We may suspend or end access if these Terms are violated. You may stop using the Service at any time.</p>
+
+    <h2 data-en="11. Governing law" data-es="11. Ley aplicable">11. Governing law</h2>
+    <p data-en="These Terms are governed by the laws of Mexico, without regard to conflict-of-law rules. Any disputes will be subject to the competent courts of Mexico." data-es="Estas Condiciones se rigen por las leyes de México, sin considerar las normas sobre conflicto de leyes. Cualquier controversia se someterá a los tribunales competentes de México.">These Terms are governed by the laws of Mexico, without regard to conflict-of-law rules. Any disputes will be subject to the competent courts of Mexico.</p>
+
+    <h2 data-en="12. Contact" data-es="12. Contacto">12. Contact</h2>
+    <p data-en="Questions about these Terms? Contact us at" data-es="¿Preguntas sobre estas Condiciones? Escríbenos a">Questions about these Terms? Contact us at</p>
+    <p><a href="mailto:zaleta55+budgetManager@gmail.com">zaleta55+budgetManager@gmail.com</a></p>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    © 2026 Rubén Zaleta Cabrera · BudgetManager · <a href="index.html" data-en="Home" data-es="Inicio">Home</a>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    function setLang(lang) {
+      document.documentElement.lang = lang;
+      document.querySelectorAll('[data-en]').forEach(function (el) {
+        var v = el.getAttribute('data-' + lang);
+        if (v !== null) el.textContent = v;
+      });
+      var t = document.getElementById('langToggle');
+      if (t) t.textContent = lang === 'en' ? 'ES' : 'EN';
+      try { localStorage.setItem('bm_lang', lang); } catch (e) {}
+    }
+    var saved = null;
+    try { saved = localStorage.getItem('bm_lang'); } catch (e) {}
+    var initial = saved || ((navigator.language || 'en').toLowerCase().indexOf('es') === 0 ? 'es' : 'en');
+    document.addEventListener('DOMContentLoaded', function () {
+      setLang(initial);
+      var t = document.getElementById('langToggle');
+      if (t) t.addEventListener('click', function () {
+        setLang(document.documentElement.lang === 'en' ? 'es' : 'en');
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>

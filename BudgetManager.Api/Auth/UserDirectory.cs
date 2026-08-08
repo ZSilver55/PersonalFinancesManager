@@ -78,13 +78,23 @@ namespace BudgetManager.Api.Auth
                     Name = name,
                     CreatedUtc = DateTime.UtcNow
                 };
-                await UpsertAsync(created, cancellationToken);
-                return created;
+                return await CreateAsync(created, cancellationToken);
             }
             finally
             {
                 _gate.Release();
             }
+        }
+
+        /// <summary>
+        /// Persists a brand-new user and returns the stored record. Overridable so a backing store
+        /// can make creation idempotent under concurrency (get-or-create by subject) and return the
+        /// row that actually won, instead of creating a duplicate.
+        /// </summary>
+        protected virtual async Task<User> CreateAsync(User user, CancellationToken cancellationToken)
+        {
+            await UpsertAsync(user, cancellationToken);
+            return user;
         }
 
         public async Task EnsureSeedAsync(Guid id, string email, CancellationToken cancellationToken = default)
@@ -175,11 +185,40 @@ namespace BudgetManager.Api.Auth
         protected override async Task UpsertAsync(User user, CancellationToken cancellationToken)
         {
             await using var conn = await OpenAsync(cancellationToken);
-            var sql =
-                "UPDATE [Users] SET Subject=@Subject, Email=@Email, Name=@Name, CreatedUtc=@CreatedUtc WHERE Id=@Id; " +
-                "IF @@ROWCOUNT = 0 INSERT INTO [Users] (Id, Subject, Email, Name, CreatedUtc) " +
+            // Atomic update-or-insert by primary key (idempotent; HOLDLOCK avoids the update/insert race).
+            const string sql =
+                "MERGE [Users] WITH (HOLDLOCK) AS t " +
+                "USING (SELECT @Id AS Id) AS s ON (t.Id = s.Id) " +
+                "WHEN MATCHED THEN UPDATE SET Subject=@Subject, Email=@Email, Name=@Name, CreatedUtc=@CreatedUtc " +
+                "WHEN NOT MATCHED THEN INSERT (Id, Subject, Email, Name, CreatedUtc) " +
                 "VALUES (@Id, @Subject, @Email, @Name, @CreatedUtc);";
             await conn.ExecuteAsync(sql, user);
+        }
+
+        protected override async Task<User> CreateAsync(User user, CancellationToken cancellationToken)
+        {
+            // A login-created user always has a subject; make creation idempotent on it. If a row
+            // with this subject already exists (a concurrent first login or a retry), no duplicate is
+            // inserted and the existing row is returned. HOLDLOCK serializes concurrent inserts, and
+            // the unique index on Subject is the final backstop.
+            if (string.IsNullOrEmpty(user.Subject))
+            {
+                await UpsertAsync(user, cancellationToken);
+                return user;
+            }
+
+            await using var conn = await OpenAsync(cancellationToken);
+            const string insertIfAbsent =
+                "MERGE [Users] WITH (HOLDLOCK) AS t " +
+                "USING (SELECT @Subject AS Subject) AS s ON (t.Subject = s.Subject) " +
+                "WHEN NOT MATCHED THEN INSERT (Id, Subject, Email, Name, CreatedUtc) " +
+                "VALUES (@Id, @Subject, @Email, @Name, @CreatedUtc);";
+            await conn.ExecuteAsync(insertIfAbsent, user);
+
+            var stored = await conn.QueryFirstOrDefaultAsync<User>(
+                "SELECT Id, Subject, Email, Name, CreatedUtc FROM [Users] WHERE Subject = @Subject",
+                new { user.Subject });
+            return stored ?? user;
         }
 
         private async Task<DbConnection> OpenAsync(CancellationToken cancellationToken)
@@ -202,9 +241,10 @@ namespace BudgetManager.Api.Auth
             try
             {
                 if (_ensured) return;
+                // Idempotent: create the table and each index only if missing, so this is safe on a
+                // fresh database and on one that already has the table from an earlier version.
                 var ddl =
                     "IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Users') " +
-                    "BEGIN " +
                     "  CREATE TABLE [Users] (" +
                     "    Id UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_Users PRIMARY KEY, " +
                     "    Subject NVARCHAR(256) NULL, " +
@@ -212,9 +252,13 @@ namespace BudgetManager.Api.Auth
                     "    Name NVARCHAR(256) NULL, " +
                     "    CreatedUtc DATETIME2 NOT NULL CONSTRAINT DF_Users_Created DEFAULT(SYSUTCDATETIME())" +
                     "  ); " +
-                    "  CREATE INDEX IX_Users_Subject ON [Users](Subject); " +
-                    "  CREATE INDEX IX_Users_Email ON [Users](Email); " +
-                    "END";
+                    // Unique (filtered) so a subject maps to at most one user; seed rows (null subject) are exempt.
+                    // Guarded against pre-existing duplicates so the upgrade never hard-fails.
+                    "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Users_Subject' AND object_id = OBJECT_ID('Users')) " +
+                    "  AND NOT EXISTS (SELECT Subject FROM [Users] WHERE Subject IS NOT NULL GROUP BY Subject HAVING COUNT(*) > 1) " +
+                    "  CREATE UNIQUE INDEX UX_Users_Subject ON [Users](Subject) WHERE Subject IS NOT NULL; " +
+                    "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Users_Email' AND object_id = OBJECT_ID('Users')) " +
+                    "  CREATE INDEX IX_Users_Email ON [Users](Email);";
                 await conn.ExecuteAsync(ddl);
                 _ensured = true;
             }

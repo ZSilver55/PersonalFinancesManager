@@ -92,9 +92,12 @@ namespace BudgetManager.Api.Settings
         {
             await using var conn = await OpenAsync(cancellationToken);
             var data = JsonSerializer.Serialize(preferences, JsonSerialization.Options);
-            var sql =
-                "UPDATE [UserSettings] SET Data=@data WHERE OwnerUserId=@owner; " +
-                "IF @@ROWCOUNT = 0 INSERT INTO [UserSettings] (OwnerUserId, Data) VALUES (@owner, @data);";
+            // Atomic update-or-insert by owner (idempotent; HOLDLOCK avoids the update/insert race).
+            const string sql =
+                "MERGE [UserSettings] WITH (HOLDLOCK) AS t " +
+                "USING (SELECT @owner AS OwnerUserId) AS s ON (t.OwnerUserId = s.OwnerUserId) " +
+                "WHEN MATCHED THEN UPDATE SET Data=@data " +
+                "WHEN NOT MATCHED THEN INSERT (OwnerUserId, Data) VALUES (@owner, @data);";
             await conn.ExecuteAsync(sql, new { owner = _currentUser.UserId, data });
         }
 
